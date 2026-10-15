@@ -1,11 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Plus, Search, Filter, Clock, Euro, Users,
   CheckCircle, AlertTriangle, BarChart2, ChevronLeft, ChevronRight
 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import { timeEntriesSeed, workersSeed, computeEntry } from '../../data/timetrackingSeed'
-import { projectsSeed } from '../../data/projectsSeed'
+import { api } from '../../api/client'
 import TimeEntryForm from './components/TimeEntryForm'
 import TimeEntryList from './components/TimeEntryList'
 import WorkersPanel from './components/WorkersPanel'
@@ -14,32 +13,117 @@ import styles from './TimetrackingPage.module.css'
 
 const TABS = ['registraties', 'medewerkers', 'rapport']
 
+// ── Helpers API → UI ─────────────────────────────────────────────────────────
+function workerFromApi(row) {
+  return {
+    id:            row.id,
+    name:          row.name || '',
+    role:          row.role || '',
+    hourlyRate:    Number(row.hourly_rate) || 0,
+    overtimeRate:  Number(row.overtime_rate) || 0,
+    phone:         row.phone || '',
+    email:         row.email || '',
+    status:        row.status || 'actief',
+    color:         row.color || '#1A3E6F',
+  }
+}
+
+function entryFromApi(row) {
+  return {
+    id:            row.id,
+    workerId:      row.worker_id,
+    workerName:    row.worker_name || '',
+    workerRole:    row.worker_role || '',
+    workerColor:   row.worker_color || '#1A3E6F',
+    projectId:     row.project_id || '',
+    projectName:   row.project_name || '',
+    date:          row.date ? row.date.slice(0, 10) : '',
+    startTime:     (row.start_time || '').slice(0, 5),
+    endTime:       (row.end_time   || '').slice(0, 5),
+    breakMinutes:  row.break_minutes ?? 30,
+    workType:      row.work_type || 'normaal',
+    description:   row.description || '',
+    status:        row.status || 'concept',
+    approvedBy:    row.approved_by || '',
+    hours:         Number(row.hours) || 0,
+    cost:          Number(row.cost)  || 0,
+    effectiveRate: Number(row.effectiveRate) || 0,
+  }
+}
+
+function toApiEntry(data) {
+  return {
+    workerId:     data.workerId,
+    projectId:    data.projectId || null,
+    projectName:  data.projectName || null,
+    date:         data.date,
+    startTime:    data.startTime,
+    endTime:      data.endTime,
+    breakMinutes: Number(data.breakMinutes) || 30,
+    workType:     data.workType || 'normaal',
+    description:  data.description || null,
+    status:       data.status || 'concept',
+  }
+}
+
+function toApiWorker(data) {
+  return {
+    name:         data.name,
+    role:         data.role,
+    hourlyRate:   Number(data.hourlyRate) || 0,
+    overtimeRate: Number(data.overtimeRate) || 0,
+    phone:        data.phone || null,
+    email:        data.email || null,
+    status:       data.status || 'actief',
+    color:        data.color || '#1A3E6F',
+  }
+}
+
 export default function TimetrackingPage() {
   const { lang } = useLang()
   const lbl = (nl, en) => lang === 'nl' ? nl : en
 
-  const [entries,  setEntries]  = useState(timeEntriesSeed)
-  const [workers,  setWorkers]  = useState(workersSeed)
-  const [tab,      setTab]      = useState('registraties')
-  const [search,   setSearch]   = useState('')
-  const [filterWorker,  setFilterWorker]  = useState('')
+  const [entries, setEntries]       = useState([])
+  const [workers, setWorkers]       = useState([])
+  const [projects, setProjects]     = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState('')
+  const [tab, setTab]               = useState('registraties')
+  const [search, setSearch]         = useState('')
+  const [filterWorker, setFilterWorker]   = useState('')
   const [filterProject, setFilterProject] = useState('')
-  const [filterStatus,  setFilterStatus]  = useState('')
-  const [filterWeek,    setFilterWeek]    = useState(() => {
-    // current Monday
+  const [filterStatus, setFilterStatus]   = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [filterWeek, setFilterWeek] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
     return d.toISOString().slice(0, 10)
   })
   const [entryForm, setEntryForm] = useState(null)
 
-  // Computed entries with hours & cost
-  const computed = useMemo(() =>
-    entries.map(e => computeEntry(e, workers)),
-    [entries, workers]
-  )
+  // ── Charger les données ─────────────────────────────────────
+  const loadAll = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [eRows, wRows, pRows] = await Promise.all([
+        api.get('/timetracking/entries'),
+        api.get('/timetracking/workers'),
+        api.get('/projects').catch(() => []),
+      ])
+      setEntries(eRows.map(entryFromApi))
+      setWorkers(wRows.map(workerFromApi))
+      setProjects((pRows || []).map(r => ({ id: r.id, name: r.name })))
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  // Week dates
+  useEffect(() => { loadAll() }, [loadAll])
+
+  // ── Week dates ──────────────────────────────────────────────
   const weekDates = useMemo(() => {
     const mon = new Date(filterWeek)
     return Array.from({ length: 7 }, (_, i) => {
@@ -61,20 +145,23 @@ export default function TimetrackingPage() {
     setFilterWeek(d.toISOString().slice(0, 10))
   }
 
-  // Stats (all time)
+  // ── Stats ───────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const totalHours   = computed.reduce((s, e) => s + e.hours, 0)
-    const totalCost    = computed.reduce((s, e) => s + e.cost, 0)
-    const pending      = computed.filter(e => e.status === 'wacht_goedkeuring').length
-    const thisWeek     = computed.filter(e => weekDates.includes(e.date))
-    const weekHours    = thisWeek.reduce((s, e) => s + e.hours, 0)
-    const weekCost     = thisWeek.reduce((s, e) => s + e.cost, 0)
-    return { totalHours, totalCost, pending, weekHours, weekCost, activeWorkers: workers.filter(w => w.status === 'actief').length }
-  }, [computed, weekDates, workers])
+    const totalHours = entries.reduce((s, e) => s + e.hours, 0)
+    const totalCost  = entries.reduce((s, e) => s + e.cost, 0)
+    const pending    = entries.filter(e => e.status === 'wacht_goedkeuring').length
+    const thisWeek   = entries.filter(e => weekDates.includes(e.date))
+    const weekHours  = thisWeek.reduce((s, e) => s + e.hours, 0)
+    const weekCost   = thisWeek.reduce((s, e) => s + e.cost, 0)
+    return {
+      totalHours, totalCost, pending, weekHours, weekCost,
+      activeWorkers: workers.filter(w => w.status === 'actief').length,
+    }
+  }, [entries, weekDates, workers])
 
-  // Filtered entries
+  // ── Filtered ────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    return computed.filter(e => {
+    return entries.filter(e => {
       if (!weekDates.includes(e.date)) return false
       const q = search.toLowerCase()
       if (q && !e.description?.toLowerCase().includes(q) && !e.workerName?.toLowerCase().includes(q) && !e.projectName?.toLowerCase().includes(q)) return false
@@ -83,35 +170,86 @@ export default function TimetrackingPage() {
       if (filterStatus  && e.status !== filterStatus)             return false
       return true
     }).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
-  }, [computed, weekDates, search, filterWorker, filterProject, filterStatus])
+  }, [entries, weekDates, search, filterWorker, filterProject, filterStatus])
 
-  // CRUD
-  function saveEntry(data) {
-    const full = computeEntry(data, workers)
-    if (data.id) {
-      setEntries(es => es.map(e => e.id === data.id ? full : e))
-    } else {
-      const id = Math.max(0, ...entries.map(e => e.id)) + 1
-      setEntries(es => [...es, { ...full, id, status: 'concept' }])
+  // ── CRUD Entries ────────────────────────────────────────────
+  async function saveEntry(data) {
+    setSaving(true)
+    try {
+      if (data.id) {
+        await api.put(`/timetracking/entries/${data.id}`, toApiEntry(data))
+      } else {
+        await api.post('/timetracking/entries', toApiEntry(data))
+      }
+      // Recharger pour avoir hours + cost calculés par le backend
+      const eRows = await api.get('/timetracking/entries')
+      setEntries(eRows.map(entryFromApi))
+      setEntryForm(null)
+    } catch (e) {
+      alert('Opslaan mislukt: ' + e.message)
+    } finally {
+      setSaving(false)
     }
-    setEntryForm(null)
   }
 
-  function deleteEntry(id) { setEntries(es => es.filter(e => e.id !== id)) }
-
-  function approveEntry(id) {
-    setEntries(es => es.map(e => e.id === id ? { ...e, status: 'goedgekeurd', approvedBy: 'Jan de Vries' } : e))
+  async function deleteEntry(id) {
+    try {
+      await api.delete(`/timetracking/entries/${id}`)
+      setEntries(es => es.filter(e => e.id !== id))
+    } catch (e) {
+      alert('Verwijderen mislukt: ' + e.message)
+    }
   }
-  function approveAll() {
-    const pending = filtered.filter(e => e.status === 'wacht_goedkeuring').map(e => e.id)
-    setEntries(es => es.map(e => pending.includes(e.id) ? { ...e, status: 'goedgekeurd', approvedBy: 'Jan de Vries' } : e))
+
+  async function approveEntry(id) {
+    try {
+      const updated = await api.patch(`/timetracking/entries/${id}/approve`)
+      // Le backend ne renvoie que l'entry sans hours/cost ; on recharge
+      const eRows = await api.get('/timetracking/entries')
+      setEntries(eRows.map(entryFromApi))
+    } catch (e) {
+      alert('Goedkeuren mislukt: ' + e.message)
+    }
   }
 
-  function saveWorker(data) {
-    if (data.id) setWorkers(ws => ws.map(w => w.id === data.id ? data : w))
-    else {
-      const id = Math.max(0, ...workers.map(w => w.id)) + 1
-      setWorkers(ws => [...ws, { ...data, id }])
+  async function approveAll() {
+    const toApprove = filtered.filter(e => e.status === 'wacht_goedkeuring')
+    if (toApprove.length === 0) return
+    try {
+      for (const e of toApprove) {
+        await api.patch(`/timetracking/entries/${e.id}/approve`)
+      }
+      const eRows = await api.get('/timetracking/entries')
+      setEntries(eRows.map(entryFromApi))
+    } catch (e) {
+      alert('Goedkeuren mislukt: ' + e.message)
+    }
+  }
+
+  // ── CRUD Workers ────────────────────────────────────────────
+  async function saveWorker(data) {
+    setSaving(true)
+    try {
+      if (data.id) {
+        const updated = await api.put(`/timetracking/workers/${data.id}`, toApiWorker(data))
+        setWorkers(ws => ws.map(w => w.id === data.id ? workerFromApi(updated) : w))
+      } else {
+        const created = await api.post('/timetracking/workers', toApiWorker(data))
+        setWorkers(ws => [...ws, workerFromApi(created)])
+      }
+    } catch (e) {
+      alert('Opslaan mislukt: ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteWorker(id) {
+    try {
+      await api.delete(`/timetracking/workers/${id}`)
+      setWorkers(ws => ws.filter(w => w.id !== id))
+    } catch (e) {
+      alert('Verwijderen mislukt: ' + e.message)
     }
   }
 
@@ -124,7 +262,6 @@ export default function TimetrackingPage() {
   const fmtEur = n => '€ ' + Number(n||0).toLocaleString('nl-NL', { minimumFractionDigits: 2 })
   const fmtH   = n => n.toFixed(1) + ' u'
 
-  // Week label
   const mon = new Date(filterWeek)
   const sun = new Date(filterWeek); sun.setDate(mon.getDate() + 6)
   const MONTHS_NL = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec']
@@ -133,7 +270,6 @@ export default function TimetrackingPage() {
   return (
     <div className={styles.page}>
 
-      {/* Header */}
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>{lbl('Tijdregistratie', 'Time tracking')}</h1>
@@ -154,7 +290,6 @@ export default function TimetrackingPage() {
         </div>
       </div>
 
-      {/* KPI stats */}
       <div className={styles.statsRow}>
         <StatCard icon={Clock}  label={lbl('Deze week','This week')}       value={fmtH(stats.weekHours)}  color="blue"   sub={fmtEur(stats.weekCost)} />
         <StatCard icon={Clock}  label={lbl('Totaal uren','Total hours')}   value={fmtH(stats.totalHours)} color="sky" />
@@ -163,7 +298,6 @@ export default function TimetrackingPage() {
         <StatCard icon={Users}  label={lbl('Medewerkers','Workers')}       value={stats.activeWorkers}    color="purple" />
       </div>
 
-      {/* Tabs */}
       <div className={styles.tabs}>
         {TABS.map(t => (
           <button key={t} className={`${styles.tab} ${tab===t?styles.tabActive:''}`}
@@ -176,7 +310,6 @@ export default function TimetrackingPage() {
         ))}
       </div>
 
-      {/* Week nav — only for registraties tab */}
       {tab === 'registraties' && (
         <div className={styles.weekNav}>
           <div className={styles.weekNavLeft}>
@@ -192,7 +325,6 @@ export default function TimetrackingPage() {
         </div>
       )}
 
-      {/* Toolbar */}
       {tab === 'registraties' && (
         <div className={styles.toolbar}>
           <div className={styles.searchWrap}>
@@ -209,7 +341,7 @@ export default function TimetrackingPage() {
             </select>
             <select className={styles.filterSelect} value={filterProject} onChange={e=>setFilterProject(e.target.value)}>
               <option value="">{lbl('Alle projecten','All projects')}</option>
-              {projectsSeed.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+              {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             <select className={styles.filterSelect} value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
               <option value="">{lbl('Alle statussen','All statuses')}</option>
@@ -221,41 +353,49 @@ export default function TimetrackingPage() {
         </div>
       )}
 
-      {/* Tab content */}
-      {tab === 'registraties' && (
-        <TimeEntryList
-          entries={filtered}
-          weekDates={weekDates}
-          workers={workers}
-          lang={lang}
-          onEdit={e => setEntryForm(e)}
-          onDelete={deleteEntry}
-          onApprove={approveEntry}
-        />
+      {loading ? (
+        <p style={{ padding: 24, textAlign: 'center', color: '#666' }}>Laden…</p>
+      ) : error ? (
+        <p style={{ padding: 24, textAlign: 'center', color: '#C8102E' }}>Fout: {error}</p>
+      ) : (
+        <>
+          {tab === 'registraties' && (
+            <TimeEntryList
+              entries={filtered}
+              weekDates={weekDates}
+              workers={workers}
+              lang={lang}
+              onEdit={e => setEntryForm(e)}
+              onDelete={deleteEntry}
+              onApprove={approveEntry}
+            />
+          )}
+
+          {tab === 'medewerkers' && (
+            <WorkersPanel
+              workers={workers}
+              entries={entries}
+              lang={lang}
+              onSave={saveWorker}
+              onDelete={deleteWorker}
+            />
+          )}
+
+          {tab === 'rapport' && (
+            <TimeReportView entries={entries} workers={workers} lang={lang} />
+          )}
+        </>
       )}
 
-      {tab === 'medewerkers' && (
-        <WorkersPanel
-          workers={workers}
-          entries={computed}
-          lang={lang}
-          onSave={saveWorker}
-          onDelete={id => setWorkers(ws => ws.filter(w => w.id !== id))}
-        />
-      )}
-
-      {tab === 'rapport' && (
-        <TimeReportView entries={computed} workers={workers} lang={lang} />
-      )}
-
-      {/* Entry form */}
       {entryForm && (
         <TimeEntryForm
           entry={entryForm === 'new' ? null : entryForm}
           workers={workers}
+          projects={projects}
           lang={lang}
           onSave={saveEntry}
           onClose={() => setEntryForm(null)}
+          saving={saving}
         />
       )}
     </div>

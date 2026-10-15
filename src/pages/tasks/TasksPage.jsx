@@ -1,12 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Plus, Search, Filter, Trash2, Pencil,
   CheckSquare, Square, Calendar, User,
   Briefcase, Tag, AlertTriangle, Clock
 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import { tasksSeed } from '../../data/tasksSeed'
-import { projectsSeed } from '../../data/projectsSeed'
+import { api } from '../../api/client'
 import TaskForm from './TaskForm'
 import styles from './TasksPage.module.css'
 
@@ -19,9 +18,9 @@ const PRIORITY_STYLE = {
 
 const STATUS_COLS = ['todo', 'in_progress', 'done']
 const COL_LABELS = {
-  todo:        { nl: 'Te doen',    en: 'To do' },
-  in_progress: { nl: 'Bezig',      en: 'In progress' },
-  done:        { nl: 'Afgerond',   en: 'Done' },
+  todo:        { nl: 'Te doen',  en: 'To do' },
+  in_progress: { nl: 'Bezig',    en: 'In progress' },
+  done:        { nl: 'Afgerond', en: 'Done' },
 }
 const COL_COLORS = {
   todo: '#1A3E6F', in_progress: '#E65100', done: '#2E7D32'
@@ -34,29 +33,93 @@ function isOverdue(task) {
 
 function fmtDate(d) {
   if (!d) return ''
-  const [y, m, day] = d.split('-')
+  const raw = d.includes('T') ? d.slice(0, 10) : d
+  const [y, m, day] = raw.split('-')
   return `${day}-${m}-${y}`
+}
+
+// API (snake_case) → UI (camelCase)
+function fromApi(row) {
+  return {
+    id:          row.id,
+    title:       row.title || '',
+    description: row.description || '',
+    projectId:   row.project_id || '',
+    projectName: row.project_name || '',
+    assignee:    row.assignee || '',
+    dueDate:     row.due_date ? row.due_date.slice(0, 10) : '',
+    priority:    row.priority || 'medium',
+    status:      row.status || 'todo',
+    category:    row.category || '',
+    tags:        row.tags || [],
+    createdAt:   row.created_at ? row.created_at.slice(0, 10) : '',
+  }
+}
+
+// UI (camelCase) → API (camelCase, le backend attend ça)
+function toApi(data) {
+  return {
+    title:       data.title,
+    description: data.description || null,
+    projectId:   data.projectId || null,
+    projectName: data.projectName || null,
+    assignee:    data.assignee || null,
+    dueDate:     data.dueDate || null,
+    priority:    data.priority || 'medium',
+    status:      data.status || 'todo',
+    category:    data.category || null,
+    tags:        data.tags || [],
+  }
 }
 
 export default function TasksPage() {
   const { lang } = useLang()
   const lbl = (nl, en) => lang === 'nl' ? nl : en
 
-  const [tasks, setTasks] = useState(tasksSeed)
-  const [search, setSearch] = useState('')
+  const [tasks, setTasks]             = useState([])
+  const [projects, setProjects]       = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState('')
+  const [search, setSearch]           = useState('')
   const [filterPriority, setFilterPriority] = useState('')
-  const [filterProject, setFilterProject] = useState('')
-  const [view, setView] = useState('kanban') // 'kanban' | 'list'
-  const [formOpen, setFormOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState(null)
-  const [deleteId, setDeleteId] = useState(null)
+  const [filterProject, setFilterProject]   = useState('')
+  const [view, setView]               = useState('kanban')
+  const [formOpen, setFormOpen]       = useState(false)
+  const [editTarget, setEditTarget]   = useState(null)
+  const [deleteId, setDeleteId]       = useState(null)
+  const [saving, setSaving]           = useState(false)
+
+  const loadTasks = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const rows = await api.get('/tasks')
+      setTasks(rows.map(fromApi))
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const loadProjects = useCallback(async () => {
+    try {
+      const rows = await api.get('/projects')
+      setProjects(rows.map(r => ({ id: r.id, name: r.name })))
+    } catch { /* silencieux */ }
+  }, [])
+
+  useEffect(() => {
+    loadTasks()
+    loadProjects()
+  }, [loadTasks, loadProjects])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     return tasks.filter(t => {
       if (q && !t.title.toLowerCase().includes(q) && !t.description?.toLowerCase().includes(q)) return false
       if (filterPriority && t.priority !== filterPriority) return false
-      if (filterProject && String(t.projectId) !== filterProject) return false
+      if (filterProject && String(t.projectId) !== String(filterProject)) return false
       return true
     })
   }, [tasks, search, filterPriority, filterProject])
@@ -73,29 +136,64 @@ export default function TasksPage() {
   function openEdit(t)   { setEditTarget(t);    setFormOpen(true) }
   function closeForm()   { setFormOpen(false);  setEditTarget(null) }
 
-  function handleSave(data) {
-    if (data.id) {
-      setTasks(ts => ts.map(t => t.id === data.id ? data : t))
-    } else {
-      const newId = Math.max(0, ...tasks.map(t => t.id)) + 1
-      setTasks(ts => [...ts, { ...data, id: newId, createdAt: new Date().toISOString().slice(0, 10) }])
+  // ── Save (create/update) ────────────────────────────────────
+  async function handleSave(data) {
+    setSaving(true)
+    try {
+      if (data.id) {
+        const updated = await api.put(`/tasks/${data.id}`, toApi(data))
+        setTasks(ts => ts.map(t => t.id === data.id ? fromApi(updated) : t))
+      } else {
+        const created = await api.post('/tasks', toApi(data))
+        setTasks(ts => [fromApi(created), ...ts])
+      }
+      closeForm()
+    } catch (e) {
+      alert('Opslaan mislukt: ' + e.message)
+    } finally {
+      setSaving(false)
     }
-    closeForm()
   }
 
-  function toggleDone(id) {
-    setTasks(ts => ts.map(t =>
-      t.id === id ? { ...t, status: t.status === 'done' ? 'todo' : 'done' } : t
-    ))
+  // ── Toggle done ─────────────────────────────────────────────
+  async function toggleDone(id) {
+    const t = tasks.find(x => x.id === id)
+    if (!t) return
+    const nextStatus = t.status === 'done' ? 'todo' : 'done'
+    // Optimistic update
+    setTasks(ts => ts.map(x => x.id === id ? { ...x, status: nextStatus } : x))
+    try {
+      await api.patch(`/tasks/${id}/status`, { status: nextStatus })
+    } catch (e) {
+      // Rollback
+      setTasks(ts => ts.map(x => x.id === id ? { ...x, status: t.status } : x))
+      alert('Update mislukt: ' + e.message)
+    }
   }
 
-  function moveTask(id, status) {
-    setTasks(ts => ts.map(t => t.id === id ? { ...t, status } : t))
+  // ── Move (kanban) ───────────────────────────────────────────
+  async function moveTask(id, status) {
+    const t = tasks.find(x => x.id === id)
+    if (!t) return
+    // Optimistic
+    setTasks(ts => ts.map(x => x.id === id ? { ...x, status } : x))
+    try {
+      await api.patch(`/tasks/${id}/status`, { status })
+    } catch (e) {
+      setTasks(ts => ts.map(x => x.id === id ? { ...x, status: t.status } : x))
+      alert('Verplaatsen mislukt: ' + e.message)
+    }
   }
 
-  function handleDelete(id) {
-    setTasks(ts => ts.filter(t => t.id !== id))
-    setDeleteId(null)
+  // ── Delete ──────────────────────────────────────────────────
+  async function handleDelete(id) {
+    try {
+      await api.delete(`/tasks/${id}`)
+      setTasks(ts => ts.filter(t => t.id !== id))
+      setDeleteId(null)
+    } catch (e) {
+      alert('Verwijderen mislukt: ' + e.message)
+    }
   }
 
   return (
@@ -157,91 +255,107 @@ export default function TasksPage() {
           </select>
           <select className={styles.filterSelect} value={filterProject} onChange={e => setFilterProject(e.target.value)}>
             <option value="">{lbl('Alle projecten', 'All projects')}</option>
-            {projectsSeed.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
       </div>
 
-      {/* KANBAN VIEW */}
-      {view === 'kanban' && (
-        <div className={styles.kanban}>
-          {STATUS_COLS.map(col => {
-            const colTasks = filtered.filter(t => t.status === col)
-            return (
-              <div key={col} className={styles.kanbanCol}>
-                <div className={styles.kanbanHeader}>
-                  <span className={styles.kanbanDot} style={{ background: COL_COLORS[col] }} />
-                  <span className={styles.kanbanTitle}>{lang === 'nl' ? COL_LABELS[col].nl : COL_LABELS[col].en}</span>
-                  <span className={styles.kanbanCount}>{colTasks.length}</span>
-                </div>
-                <div className={styles.kanbanCards}>
-                  {colTasks.length === 0 && (
-                    <div className={styles.emptyCol}>{lbl('Geen taken', 'No tasks')}</div>
-                  )}
-                  {colTasks.map(task => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      lang={lang}
-                      onToggle={() => toggleDone(task.id)}
-                      onEdit={() => openEdit(task)}
-                      onDelete={() => setDeleteId(task.id)}
-                      onMove={status => moveTask(task.id, status)}
-                      allCols={STATUS_COLS}
-                      colLabels={COL_LABELS}
-                    />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* LIST VIEW */}
-      {view === 'list' && (
-        <div className={styles.listWrap}>
-          {[...filtered].sort((a, b) => {
-            const order = { urgent: 0, high: 1, medium: 2, low: 3 }
-            return (order[a.priority] ?? 9) - (order[b.priority] ?? 9)
-          }).map(task => {
-            const overdue = isOverdue(task)
-            const ps = PRIORITY_STYLE[task.priority] || PRIORITY_STYLE.medium
-            return (
-              <div key={task.id} className={`${styles.listRow} ${task.status === 'done' ? styles.listRowDone : ''}`}>
-                <button className={styles.checkBtn} onClick={() => toggleDone(task.id)}>
-                  {task.status === 'done'
-                    ? <CheckSquare size={18} className={styles.checkDone} />
-                    : <Square size={18} className={styles.checkEmpty} />}
-                </button>
-                <div className={styles.listMain}>
-                  <span className={`${styles.listTitle} ${task.status === 'done' ? styles.strikethrough : ''}`}>{task.title}</span>
-                  <div className={styles.listMeta}>
-                    {task.projectName && <span className={styles.metaItem}><Briefcase size={11} />{task.projectName}</span>}
-                    {task.assignee   && <span className={styles.metaItem}><User size={11} />{task.assignee}</span>}
-                    {task.dueDate    && (
-                      <span className={`${styles.metaItem} ${overdue ? styles.metaOverdue : ''}`}>
-                        <Calendar size={11} />{fmtDate(task.dueDate)}
-                        {overdue && <AlertTriangle size={10} />}
-                      </span>
-                    )}
+      {loading ? (
+        <p style={{ padding: 24, textAlign: 'center', color: '#666' }}>Laden…</p>
+      ) : error ? (
+        <p style={{ padding: 24, textAlign: 'center', color: '#C8102E' }}>Fout: {error}</p>
+      ) : (
+        <>
+          {/* KANBAN VIEW */}
+          {view === 'kanban' && (
+            <div className={styles.kanban}>
+              {STATUS_COLS.map(col => {
+                const colTasks = filtered.filter(t => t.status === col)
+                return (
+                  <div key={col} className={styles.kanbanCol}>
+                    <div className={styles.kanbanHeader}>
+                      <span className={styles.kanbanDot} style={{ background: COL_COLORS[col] }} />
+                      <span className={styles.kanbanTitle}>{lang === 'nl' ? COL_LABELS[col].nl : COL_LABELS[col].en}</span>
+                      <span className={styles.kanbanCount}>{colTasks.length}</span>
+                    </div>
+                    <div className={styles.kanbanCards}>
+                      {colTasks.length === 0 && (
+                        <div className={styles.emptyCol}>{lbl('Geen taken', 'No tasks')}</div>
+                      )}
+                      {colTasks.map(task => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          lang={lang}
+                          onToggle={() => toggleDone(task.id)}
+                          onEdit={() => openEdit(task)}
+                          onDelete={() => setDeleteId(task.id)}
+                          onMove={status => moveTask(task.id, status)}
+                          allCols={STATUS_COLS}
+                          colLabels={COL_LABELS}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <span className={styles.priorityBadge} style={{ background: ps.bg, color: ps.color }}>
-                  {lang === 'nl' ? ps.label_nl : ps.label_en}
-                </span>
-                <div className={styles.listActions}>
-                  <button className={styles.actionBtn} onClick={() => openEdit(task)}><Pencil size={13} /></button>
-                  <button className={`${styles.actionBtn} ${styles.actionBtnRed}`} onClick={() => setDeleteId(task.id)}><Trash2 size={13} /></button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* LIST VIEW */}
+          {view === 'list' && (
+            <div className={styles.listWrap}>
+              {[...filtered].sort((a, b) => {
+                const order = { urgent: 0, high: 1, medium: 2, low: 3 }
+                return (order[a.priority] ?? 9) - (order[b.priority] ?? 9)
+              }).map(task => {
+                const overdue = isOverdue(task)
+                const ps = PRIORITY_STYLE[task.priority] || PRIORITY_STYLE.medium
+                return (
+                  <div key={task.id} className={`${styles.listRow} ${task.status === 'done' ? styles.listRowDone : ''}`}>
+                    <button className={styles.checkBtn} onClick={() => toggleDone(task.id)}>
+                      {task.status === 'done'
+                        ? <CheckSquare size={18} className={styles.checkDone} />
+                        : <Square size={18} className={styles.checkEmpty} />}
+                    </button>
+                    <div className={styles.listMain}>
+                      <span className={`${styles.listTitle} ${task.status === 'done' ? styles.strikethrough : ''}`}>{task.title}</span>
+                      <div className={styles.listMeta}>
+                        {task.projectName && <span className={styles.metaItem}><Briefcase size={11} />{task.projectName}</span>}
+                        {task.assignee   && <span className={styles.metaItem}><User size={11} />{task.assignee}</span>}
+                        {task.dueDate    && (
+                          <span className={`${styles.metaItem} ${overdue ? styles.metaOverdue : ''}`}>
+                            <Calendar size={11} />{fmtDate(task.dueDate)}
+                            {overdue && <AlertTriangle size={10} />}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className={styles.priorityBadge} style={{ background: ps.bg, color: ps.color }}>
+                      {lang === 'nl' ? ps.label_nl : ps.label_en}
+                    </span>
+                    <div className={styles.listActions}>
+                      <button className={styles.actionBtn} onClick={() => openEdit(task)}><Pencil size={13} /></button>
+                      <button className={`${styles.actionBtn} ${styles.actionBtnRed}`} onClick={() => setDeleteId(task.id)}><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
       )}
 
       {/* Form */}
-      {formOpen && <TaskForm task={editTarget} onSave={handleSave} onClose={closeForm} />}
+      {formOpen && (
+        <TaskForm
+          task={editTarget}
+          projects={projects}
+          onSave={handleSave}
+          onClose={closeForm}
+          saving={saving}
+        />
+      )}
 
       {/* Delete confirm */}
       {deleteId !== null && (
@@ -304,7 +418,6 @@ function TaskCard({ task, lang, onToggle, onEdit, onDelete, onMove, allCols, col
         </div>
       )}
 
-      {/* Move buttons */}
       <div className={styles.moveBtns}>
         {allCols.filter(c => c !== task.status).map(c => (
           <button key={c} className={styles.moveBtn} onClick={() => onMove(c)}>

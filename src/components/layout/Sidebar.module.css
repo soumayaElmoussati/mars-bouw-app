@@ -15,7 +15,6 @@
 .logoImg {
   width: 100%; max-width: 140px; height: auto;
   display: block;
-  filter: brightness(0) invert(1);
 }
 
 .nav {

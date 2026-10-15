@@ -1,4 +1,4 @@
-import { Pencil, Trash2, FileCheck, Eye, Copy } from 'lucide-react'
+import { Pencil, Trash2, FileCheck } from 'lucide-react'
 import styles from './FinanceTable.module.css'
 
 const STATUS_STYLE = {
@@ -11,49 +11,76 @@ const STATUS_STYLE = {
 
 function fmtDate(d) {
   if (!d) return '—'
-  const [y, m, day] = d.split('-'); return `${day}-${m}-${y}`
+  return d.toString().slice(0, 10).split('-').reverse().join('-')
+}
+
+// Support both camelCase (seed/form) and snake_case (DB)
+function g(o, camel, snake) {
+  return o[camel] !== undefined ? o[camel] : o[snake]
 }
 
 export default function OfferteList({ offertes, search, filterStatus, lang, onEdit, onDelete, onConvert, calcTotal, calcTotalIncl }) {
   const lbl = (nl, en) => lang === 'nl' ? nl : en
-  const fmtEur = n => '€ ' + Number(n||0).toLocaleString('nl-NL', { minimumFractionDigits: 2 })
+  const fmtEur = n => '€ ' + Number(n || 0).toLocaleString('nl-NL', { minimumFractionDigits: 2 })
 
   const filtered = offertes.filter(o => {
+    const num     = g(o, 'offerteNumber', 'offerte_number') || ''
+    const client  = g(o, 'clientName',    'client_name')    || ''
+    const project = g(o, 'projectName',   'project_name')   || ''
     const q = search.toLowerCase()
-    if (q && !o.offerteNumber.toLowerCase().includes(q) && !o.clientName.toLowerCase().includes(q) && !o.projectName.toLowerCase().includes(q)) return false
+    if (q && !num.toLowerCase().includes(q) &&
+             !client.toLowerCase().includes(q) &&
+             !project.toLowerCase().includes(q)) return false
     if (filterStatus && o.status !== filterStatus) return false
     return true
-  }).sort((a, b) => b.date.localeCompare(a.date))
+  }).sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
-  if (filtered.length === 0) return <div className={styles.empty}>{lbl('Geen offertes gevonden','No quotes found')}</div>
+  if (filtered.length === 0) return (
+    <div className={styles.empty}>{lbl('Geen offertes gevonden', 'No quotes found')}</div>
+  )
 
   return (
     <div className={styles.wrap}>
       <table className={styles.table}>
         <thead><tr>
-          <th>{lbl('Nummer','Number')}</th>
-          <th>{lbl('Klant','Client')}</th>
-          <th>{lbl('Project','Project')}</th>
-          <th>{lbl('Datum','Date')}</th>
-          <th>{lbl('Geldig tot','Valid until')}</th>
-          <th style={{ textAlign:'right' }}>{lbl('Excl. BTW','Excl. VAT')}</th>
-          <th style={{ textAlign:'right' }}>{lbl('Incl. BTW','Incl. VAT')}</th>
-          <th>{lbl('Status','Status')}</th>
-          <th />
+          <th>{lbl('Nummer', 'Number')}</th>
+          <th>{lbl('Klant', 'Client')}</th>
+          <th>{lbl('Project', 'Project')}</th>
+          <th>{lbl('Datum', 'Date')}</th>
+          <th>{lbl('Geldig tot', 'Valid until')}</th>
+          <th style={{ textAlign: 'right' }}>{lbl('Excl. BTW', 'Excl. VAT')}</th>
+          <th style={{ textAlign: 'right' }}>{lbl('Incl. BTW', 'Incl. VAT')}</th>
+          <th>{lbl('Status', 'Status')}</th>
+          <th/>
         </tr></thead>
         <tbody>
           {filtered.map(o => {
-            const excl = calcTotal(o.lines)
-            const incl = calcTotalIncl(o.lines)
+            const offerteNumber     = g(o, 'offerteNumber',      'offerte_number')       || '—'
+            const clientName        = g(o, 'clientName',          'client_name')          || '—'
+            const projectName       = g(o, 'projectName',         'project_name')         || '—'
+            const validDays         = g(o, 'validDays',           'valid_days')           || 14
+            const convertedToInvoice= g(o, 'convertedToInvoice',  'converted_to_invoice') || false
+
+            const excl = calcTotal(o.lines || [])
+            const incl = calcTotalIncl(o.lines || [])
             const st   = STATUS_STYLE[o.status] || STATUS_STYLE.concept
+
+            // Safe valid until calculation
             const validUntil = (() => {
-              const d = new Date(o.date); d.setDate(d.getDate() + o.validDays); return fmtDate(d.toISOString().slice(0,10))
+              if (!o.date) return '—'
+              try {
+                const d = new Date(o.date)
+                if (isNaN(d.getTime())) return '—'
+                d.setDate(d.getDate() + +validDays)
+                return fmtDate(d.toISOString().slice(0, 10))
+              } catch { return '—' }
             })()
+
             return (
               <tr key={o.id} className={styles.row}>
-                <td><span className={styles.num}>{o.offerteNumber}</span></td>
-                <td><div className={styles.client}>{o.clientName}</div></td>
-                <td><div className={styles.sub}>{o.projectName}</div></td>
+                <td><span className={styles.num}>{offerteNumber}</span></td>
+                <td><div className={styles.client}>{clientName}</div></td>
+                <td><div className={styles.sub}>{projectName}</div></td>
                 <td className={styles.date}>{fmtDate(o.date)}</td>
                 <td className={styles.date}>{validUntil}</td>
                 <td className={styles.amount}>{fmtEur(excl)}</td>
@@ -61,13 +88,20 @@ export default function OfferteList({ offertes, search, filterStatus, lang, onEd
                 <td><span className={styles.badge} style={{ background: st.bg, color: st.color }}>{o.status}</span></td>
                 <td>
                   <div className={styles.actions}>
-                    {!o.convertedToInvoice && o.status === 'goedgekeurd' && (
-                      <button className={`${styles.actionBtn} ${styles.actionBtnGreen}`} title={lbl('Omzetten naar factuur','Convert to invoice')} onClick={() => onConvert(o)}>
-                        <FileCheck size={14} />
+                    {!convertedToInvoice && o.status === 'goedgekeurd' && (
+                      <button
+                        className={`${styles.actionBtn} ${styles.actionBtnGreen}`}
+                        title={lbl('Omzetten naar factuur', 'Convert to invoice')}
+                        onClick={() => onConvert(o)}>
+                        <FileCheck size={14}/>
                       </button>
                     )}
-                    <button className={styles.actionBtn} title={lbl('Bewerken','Edit')} onClick={() => onEdit(o)}><Pencil size={13} /></button>
-                    <button className={`${styles.actionBtn} ${styles.actionBtnRed}`} title={lbl('Verwijderen','Delete')} onClick={() => onDelete(o.id)}><Trash2 size={13} /></button>
+                    <button className={styles.actionBtn} title={lbl('Bewerken', 'Edit')} onClick={() => onEdit(o)}>
+                      <Pencil size={13}/>
+                    </button>
+                    <button className={`${styles.actionBtn} ${styles.actionBtnRed}`} title={lbl('Verwijderen', 'Delete')} onClick={() => onDelete(o.id)}>
+                      <Trash2 size={13}/>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -75,7 +109,7 @@ export default function OfferteList({ offertes, search, filterStatus, lang, onEd
           })}
         </tbody>
       </table>
-      <div className={styles.footer}>{filtered.length} / {offertes.length} {lbl('offertes','quotes')}</div>
+      <div className={styles.footer}>{filtered.length} / {offertes.length} {lbl('offertes', 'quotes')}</div>
     </div>
   )
 }

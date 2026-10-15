@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, ChevronRight, Plus, XCircle } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import { projectsSeed } from '../../data/projectsSeed'
 import styles from './TaskForm.module.css'
 
 const EMPTY = {
@@ -31,7 +30,7 @@ const CATEGORIES = [
   { key: 'overig',        nl: 'Overig',        en: 'Other' },
 ]
 
-export default function TaskForm({ task, onSave, onClose }) {
+export default function TaskForm({ task, projects = [], onSave, onClose, saving }) {
   const { lang } = useLang()
   const lbl = (nl, en) => lang === 'nl' ? nl : en
 
@@ -50,7 +49,7 @@ export default function TaskForm({ task, onSave, onClose }) {
   }
 
   function handleProject(id) {
-    const pr = projectsSeed.find(p => String(p.id) === id)
+    const pr = projects.find(p => String(p.id) === String(id))
     setData(d => ({ ...d, projectId: id, projectName: pr ? pr.name : '' }))
   }
 
@@ -134,7 +133,7 @@ export default function TaskForm({ task, onSave, onClose }) {
               <label className={styles.label}>{lbl('Project', 'Project')}</label>
               <select className={styles.select} value={data.projectId} onChange={e => handleProject(e.target.value)}>
                 <option value="">— {lbl('Geen project', 'No project')} —</option>
-                {projectsSeed.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
 
@@ -188,12 +187,12 @@ export default function TaskForm({ task, onSave, onClose }) {
           </div>
 
           <div className={styles.footer}>
-            <button type="button" className={styles.cancelBtn} onClick={onClose}>
+            <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={saving}>
               {lbl('Annuleren', 'Cancel')}
             </button>
-            <button type="submit" className={styles.saveBtn}>
+            <button type="submit" className={styles.saveBtn} disabled={saving}>
               <ChevronRight size={15} />
-              {task ? lbl('Bijwerken', 'Update') : lbl('Taak opslaan', 'Save task')}
+              {saving ? '…' : (task ? lbl('Bijwerken', 'Update') : lbl('Taak opslaan', 'Save task'))}
             </button>
           </div>
         </form>

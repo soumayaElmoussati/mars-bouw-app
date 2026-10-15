@@ -57,7 +57,7 @@ export default function Sidebar() {
   return (
     <aside className={styles.sidebar}>
       <div className={styles.logo}>
-        <img src="/logo.png" alt="Mars Bouw" className={styles.logoImg} />
+        <img src="/logo_dark.png" alt="Mars Bouw" className={styles.logoImg} />
       </div>
 
       <nav className={styles.nav}>
@@ -81,15 +81,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className={styles.bottom}>
-        <NavLink
-          to="/settings"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-        >
-          <Settings size={16} className={styles.navIcon} />
-          <span>{t.nav.settings}</span>
-        </NavLink>
-      </div>
+
     </aside>
   )
 }
