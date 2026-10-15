@@ -5,7 +5,7 @@ import {
   FileImage, File, XCircle
 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import { clientsSeed } from '../../data/clientsSeed'
+import { api } from '../../api/client'
 import styles from './ProjectForm.module.css'
 
 const EMPTY = {
@@ -39,15 +39,33 @@ function formatBytes(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
-export default function ProjectForm({ project, onSave, onClose }) {
+export default function ProjectForm({ project, onSave, onClose, saving }) {
   const { t } = useLang()
   const f = t.projects.form
-  const [data, setData] = useState(EMPTY)
-  const [errors, setErrors] = useState({})
-  const [newTask, setNewTask] = useState('')
+  const [data, setData]         = useState(EMPTY)
+  const [errors, setErrors]     = useState({})
+  const [newTask, setNewTask]   = useState('')
   const [newProblem, setNewProblem] = useState('')
   const [dragOver, setDragOver] = useState(false)
+  const [clients, setClients]   = useState([])
+  const [clientsLoading, setClientsLoading] = useState(true)
   const fileInputRef = useRef()
+
+  // Charger la liste des clients
+  useEffect(() => {
+    let cancelled = false
+    api.get('/clients')
+      .then(rows => {
+        if (cancelled) return
+        setClients(rows.map(r => ({
+          id: r.id,
+          name: r.company_name || `${r.first_name || ''} ${r.last_name || ''}`.trim() || r.email,
+        })))
+      })
+      .catch(() => { /* ignore, dropdown restera vide */ })
+      .finally(() => { if (!cancelled) setClientsLoading(false) })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     if (project) setData({ ...EMPTY, ...project })
@@ -79,7 +97,7 @@ export default function ProjectForm({ project, onSave, onClose }) {
       id: Date.now(),
       text: txt,
       date: new Date().toISOString().slice(0, 10),
-      resolved: false
+      resolved: false,
     }])
     setNewProblem('')
   }
@@ -105,11 +123,11 @@ export default function ProjectForm({ project, onSave, onClose }) {
   }
 
   function handleClientChange(clientId) {
-    const cl = clientsSeed.find(c => String(c.id) === String(clientId))
+    const cl = clients.find(c => String(c.id) === String(clientId))
     setData(d => ({
       ...d,
       clientId,
-      clientName: cl ? cl.companyName || `${cl.firstName} ${cl.lastName}` : '',
+      clientName: cl ? cl.name : '',
     }))
   }
 
@@ -120,10 +138,10 @@ export default function ProjectForm({ project, onSave, onClose }) {
 
   function validate() {
     const e = {}
-    if (!data.name.trim())          e.name = true
-    if (!data.startDate)            e.startDate = true
-    if (!data.estimatedEndDate)     e.estimatedEndDate = true
-    if (!data.address.trim())       e.address = true
+    if (!data.name.trim())        e.name = true
+    if (!data.startDate)          e.startDate = true
+    if (!data.estimatedEndDate)   e.estimatedEndDate = true
+    if (!data.address.trim())     e.address = true
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -162,12 +180,11 @@ export default function ProjectForm({ project, onSave, onClose }) {
                   className={styles.select}
                   value={data.clientId}
                   onChange={e => handleClientChange(e.target.value)}
+                  disabled={clientsLoading}
                 >
-                  <option value="">— Selecteer klant —</option>
-                  {clientsSeed.map(cl => (
-                    <option key={cl.id} value={cl.id}>
-                      {cl.companyName || `${cl.firstName} ${cl.lastName}`}
-                    </option>
+                  <option value="">{clientsLoading ? 'Laden…' : '— Selecteer klant —'}</option>
+                  {clients.map(cl => (
+                    <option key={cl.id} value={cl.id}>{cl.name}</option>
                   ))}
                 </select>
               </Field>
@@ -420,9 +437,9 @@ export default function ProjectForm({ project, onSave, onClose }) {
 
           <div className={styles.footer}>
             <button type="button" className={styles.cancelBtn} onClick={onClose}>{f.cancel}</button>
-            <button type="submit" className={styles.saveBtn}>
+            <button type="submit" className={styles.saveBtn} disabled={saving}>
               <ChevronRight size={15} />
-              {project ? f.update : f.save}
+              {saving ? '…' : (project ? f.update : f.save)}
             </button>
           </div>
         </form>

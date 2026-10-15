@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Plus, Search, Pencil, Trash2, Filter,
   CalendarDays, Euro, MapPin, CheckSquare,
   AlertTriangle, Paperclip, Clock, TrendingUp
 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import { projectsSeed } from '../../data/projectsSeed'
+import { api } from '../../api/client'
 import ProjectForm from './ProjectForm'
 import styles from './ProjectsPage.module.css'
 
@@ -26,7 +26,8 @@ const PRIORITY_STYLE = {
 
 function fmtDate(d) {
   if (!d) return '—'
-  const [y, m, day] = d.split('-')
+  const raw = d.includes('T') ? d.slice(0, 10) : d
+  const [y, m, day] = raw.split('-')
   return `${day}-${m}-${y}`
 }
 
@@ -34,17 +35,86 @@ function fmtEur(n) {
   return '€ ' + Number(n || 0).toLocaleString('nl-NL')
 }
 
+// API (snake_case) → UI (camelCase)
+function fromApi(row) {
+  return {
+    id:               row.id,
+    name:             row.name || '',
+    clientId:         row.client_id || '',
+    clientName:       row.client_name || '',
+    status:           row.status || 'planning',
+    priority:         row.priority || 'medium',
+    startDate:        row.start_date ? row.start_date.slice(0, 10) : '',
+    estimatedEndDate: row.estimated_end_date ? row.estimated_end_date.slice(0, 10) : '',
+    budget:           row.budget ?? '',
+    spentBudget:      row.spent_budget ?? '',
+    address:          row.address || '',
+    description:      row.description || '',
+    notes:            row.notes || '',
+    createdAt:        row.created_at ? row.created_at.slice(0, 10) : '',
+    tasks:            (row.tasks || []).map(t => ({
+      id:   t.id,
+      text: t.text,
+      done: t.done,
+    })),
+    problems: (row.problems || []).map(pb => ({
+      id:       pb.id,
+      text:     pb.text,
+      date:     pb.date ? pb.date.slice(0, 10) : '',
+      resolved: pb.resolved,
+    })),
+    attachments: row.attachments || [],
+  }
+}
+
+// UI (camelCase) → API (camelCase — le backend attend ça)
+function toApi(data) {
+  return {
+    name:             data.name,
+    clientId:         data.clientId || null,
+    clientName:       data.clientName || null,
+    status:           data.status || 'planning',
+    priority:         data.priority || 'medium',
+    startDate:        data.startDate || null,
+    estimatedEndDate: data.estimatedEndDate || null,
+    budget:           data.budget !== '' ? Number(data.budget) : 0,
+    spentBudget:      data.spentBudget !== '' ? Number(data.spentBudget) : 0,
+    address:          data.address || null,
+    description:      data.description || null,
+    notes:            data.notes || null,
+    tasks:            (data.tasks || []).map(t => ({ text: t.text, done: !!t.done })),
+  }
+}
+
 export default function ProjectsPage() {
   const { t } = useLang()
   const p = t.projects
 
-  const [projects, setProjects] = useState(projectsSeed)
-  const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
+  const [projects, setProjects]             = useState([])
+  const [loading, setLoading]               = useState(true)
+  const [error, setError]                   = useState('')
+  const [search, setSearch]                 = useState('')
+  const [filterStatus, setFilterStatus]     = useState('')
   const [filterPriority, setFilterPriority] = useState('')
-  const [formOpen, setFormOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState(null)
-  const [deleteId, setDeleteId] = useState(null)
+  const [formOpen, setFormOpen]             = useState(false)
+  const [editTarget, setEditTarget]         = useState(null)
+  const [deleteId, setDeleteId]             = useState(null)
+  const [saving, setSaving]                 = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const rows = await api.get('/projects')
+      setProjects(rows.map(fromApi))
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -71,19 +141,33 @@ export default function ProjectsPage() {
   function openEdit(pr) { setEditTarget(pr);   setFormOpen(true) }
   function closeForm()  { setFormOpen(false);  setEditTarget(null) }
 
-  function handleSave(data) {
-    if (editTarget) {
-      setProjects(ps => ps.map(pr => pr.id === editTarget.id ? { ...pr, ...data } : pr))
-    } else {
-      const newId = Math.max(0, ...projects.map(pr => pr.id)) + 1
-      setProjects(ps => [...ps, { ...data, id: newId, createdAt: new Date().toISOString().slice(0, 10) }])
+  async function handleSave(data) {
+    setSaving(true)
+    try {
+      if (editTarget) {
+        const updated = await api.put(`/projects/${editTarget.id}`, toApi(data))
+        // On recharge pour récupérer les tasks/problems complets
+        await load()
+      } else {
+        await api.post('/projects', toApi(data))
+        await load()
+      }
+      closeForm()
+    } catch (e) {
+      alert('Opslaan mislukt: ' + e.message)
+    } finally {
+      setSaving(false)
     }
-    closeForm()
   }
 
-  function handleDelete(id) {
-    setProjects(ps => ps.filter(pr => pr.id !== id))
-    setDeleteId(null)
+  async function handleDelete(id) {
+    try {
+      await api.delete(`/projects/${id}`)
+      setProjects(ps => ps.filter(pr => pr.id !== id))
+      setDeleteId(null)
+    } catch (e) {
+      alert('Verwijderen mislukt: ' + e.message)
+    }
   }
 
   return (
@@ -131,7 +215,18 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className={styles.empty}>
+          <p className={styles.emptyTitle}>Laden…</p>
+        </div>
+      ) : error ? (
+        <div className={styles.empty}>
+          <p className={styles.emptyTitle}>Fout: {error}</p>
+          <button className={styles.addBtn} onClick={load} style={{ marginTop: 12 }}>
+            Opnieuw proberen
+          </button>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className={styles.empty}>
           <p className={styles.emptyTitle}>{p.noResults}</p>
           <p className={styles.emptyHint}>{p.noResultsHint}</p>
@@ -241,7 +336,12 @@ export default function ProjectsPage() {
       </div>
 
       {formOpen && (
-        <ProjectForm project={editTarget} onSave={handleSave} onClose={closeForm} />
+        <ProjectForm
+          project={editTarget}
+          onSave={handleSave}
+          onClose={closeForm}
+          saving={saving}
+        />
       )}
 
       {deleteId !== null && (
