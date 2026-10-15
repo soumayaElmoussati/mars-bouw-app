@@ -1,0 +1,26 @@
+.overlay { position: fixed; inset: 0; background: rgba(10,20,40,.45); z-index: 300; display: flex; align-items: center; justify-content: center; }
+.modal { background: var(--white); border-radius: var(--radius-lg); width: 90%; max-width: 520px; box-shadow: var(--shadow-lg); overflow: hidden; animation: popIn .15s ease; }
+@keyframes popIn { from { transform: scale(.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.header { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--grey-200); }
+.title { font-size: 16px; font-weight: 700; color: var(--grey-900); margin-bottom: 2px; }
+.sub { font-size: 12.5px; color: var(--grey-500); }
+.closeBtn { background: none; border: none; cursor: pointer; color: var(--grey-500); padding: 4px; border-radius: var(--radius); display: flex; }
+.closeBtn:hover { background: var(--grey-100); }
+.summary { display: flex; gap: 0; background: var(--grey-50); border-bottom: 1px solid var(--grey-200); }
+.summaryItem { flex: 1; padding: 12px 20px; border-right: 1px solid var(--grey-200); display: flex; flex-direction: column; gap: 2px; }
+.summaryItem:last-child { border-right: none; }
+.summaryItem span { font-size: 11px; color: var(--grey-500); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.summaryItem strong { font-size: 15px; font-weight: 700; color: var(--grey-900); }
+.history { border-bottom: 1px solid var(--grey-200); padding: 10px 20px; display: flex; flex-direction: column; gap: 4px; }
+.historyRow { display: grid; grid-template-columns: 100px 120px 1fr auto; gap: 8px; font-size: 12.5px; color: var(--grey-700); padding: 4px 0; }
+.historyRow strong { font-weight: 700; color: var(--grey-900); }
+.form { padding: 18px 24px; display: flex; flex-direction: column; gap: 12px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 12.5px; font-weight: 600; color: var(--grey-700); }
+.field input, .field select { padding: 9px 12px; border: 1.5px solid var(--grey-200); border-radius: var(--radius); font-size: 13.5px; color: var(--grey-900); background: var(--white); outline: none; width: 100%; transition: border-color var(--transition); }
+.field input:focus, .field select:focus { border-color: var(--blue-light); }
+.footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+.cancelBtn { background: none; border: 1.5px solid var(--grey-200); border-radius: var(--radius); padding: 8px 18px; font-size: 13.5px; font-weight: 600; color: var(--grey-700); cursor: pointer; }
+.saveBtn { background: var(--blue); color: var(--white); border: none; border-radius: var(--radius); padding: 8px 18px; font-size: 13.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.saveBtn:hover { background: var(--blue-mid); }

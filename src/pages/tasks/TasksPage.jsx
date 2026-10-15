@@ -1,0 +1,317 @@
+import { useState, useMemo } from 'react'
+import {
+  Plus, Search, Filter, Trash2, Pencil,
+  CheckSquare, Square, Calendar, User,
+  Briefcase, Tag, AlertTriangle, Clock
+} from 'lucide-react'
+import { useLang } from '../../i18n/LanguageContext'
+import { tasksSeed } from '../../data/tasksSeed'
+import { projectsSeed } from '../../data/projectsSeed'
+import TaskForm from './TaskForm'
+import styles from './TasksPage.module.css'
+
+const PRIORITY_STYLE = {
+  low:    { bg: '#F1F8E9', color: '#558B2F', label_nl: 'Laag',   label_en: 'Low' },
+  medium: { bg: '#E3F2FD', color: '#1565C0', label_nl: 'Normaal',label_en: 'Medium' },
+  high:   { bg: '#FFF3E0', color: '#E65100', label_nl: 'Hoog',   label_en: 'High' },
+  urgent: { bg: '#FFEBEE', color: '#B71C1C', label_nl: 'Urgent', label_en: 'Urgent' },
+}
+
+const STATUS_COLS = ['todo', 'in_progress', 'done']
+const COL_LABELS = {
+  todo:        { nl: 'Te doen',    en: 'To do' },
+  in_progress: { nl: 'Bezig',      en: 'In progress' },
+  done:        { nl: 'Afgerond',   en: 'Done' },
+}
+const COL_COLORS = {
+  todo: '#1A3E6F', in_progress: '#E65100', done: '#2E7D32'
+}
+
+function isOverdue(task) {
+  if (!task.dueDate || task.status === 'done') return false
+  return task.dueDate < new Date().toISOString().slice(0, 10)
+}
+
+function fmtDate(d) {
+  if (!d) return ''
+  const [y, m, day] = d.split('-')
+  return `${day}-${m}-${y}`
+}
+
+export default function TasksPage() {
+  const { lang } = useLang()
+  const lbl = (nl, en) => lang === 'nl' ? nl : en
+
+  const [tasks, setTasks] = useState(tasksSeed)
+  const [search, setSearch] = useState('')
+  const [filterPriority, setFilterPriority] = useState('')
+  const [filterProject, setFilterProject] = useState('')
+  const [view, setView] = useState('kanban') // 'kanban' | 'list'
+  const [formOpen, setFormOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState(null)
+  const [deleteId, setDeleteId] = useState(null)
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return tasks.filter(t => {
+      if (q && !t.title.toLowerCase().includes(q) && !t.description?.toLowerCase().includes(q)) return false
+      if (filterPriority && t.priority !== filterPriority) return false
+      if (filterProject && String(t.projectId) !== filterProject) return false
+      return true
+    })
+  }, [tasks, search, filterPriority, filterProject])
+
+  const stats = useMemo(() => ({
+    total: tasks.length,
+    todo: tasks.filter(t => t.status === 'todo').length,
+    inProgress: tasks.filter(t => t.status === 'in_progress').length,
+    done: tasks.filter(t => t.status === 'done').length,
+    overdue: tasks.filter(t => isOverdue(t)).length,
+  }), [tasks])
+
+  function openAdd()     { setEditTarget(null); setFormOpen(true) }
+  function openEdit(t)   { setEditTarget(t);    setFormOpen(true) }
+  function closeForm()   { setFormOpen(false);  setEditTarget(null) }
+
+  function handleSave(data) {
+    if (data.id) {
+      setTasks(ts => ts.map(t => t.id === data.id ? data : t))
+    } else {
+      const newId = Math.max(0, ...tasks.map(t => t.id)) + 1
+      setTasks(ts => [...ts, { ...data, id: newId, createdAt: new Date().toISOString().slice(0, 10) }])
+    }
+    closeForm()
+  }
+
+  function toggleDone(id) {
+    setTasks(ts => ts.map(t =>
+      t.id === id ? { ...t, status: t.status === 'done' ? 'todo' : 'done' } : t
+    ))
+  }
+
+  function moveTask(id, status) {
+    setTasks(ts => ts.map(t => t.id === id ? { ...t, status } : t))
+  }
+
+  function handleDelete(id) {
+    setTasks(ts => ts.filter(t => t.id !== id))
+    setDeleteId(null)
+  }
+
+  return (
+    <div className={styles.page}>
+
+      {/* Header */}
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>{lbl('Taken', 'Tasks')}</h1>
+          <p className={styles.pageSubtitle}>{lbl('Overzicht van alle openstaande taken', 'Overview of all open tasks')}</p>
+        </div>
+        <div className={styles.headerRight}>
+          <div className={styles.viewToggle}>
+            <button className={`${styles.viewBtn} ${view === 'kanban' ? styles.viewBtnActive : ''}`} onClick={() => setView('kanban')}>
+              ⊞ {lbl('Kanban', 'Kanban')}
+            </button>
+            <button className={`${styles.viewBtn} ${view === 'list' ? styles.viewBtnActive : ''}`} onClick={() => setView('list')}>
+              ☰ {lbl('Lijst', 'List')}
+            </button>
+          </div>
+          <button className={styles.addBtn} onClick={openAdd}>
+            <Plus size={16} /> {lbl('Nieuwe taak', 'New task')}
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className={styles.statsRow}>
+        <div className={styles.stat}><span className={styles.statNum}>{stats.total}</span><span className={styles.statLbl}>{lbl('Totaal', 'Total')}</span></div>
+        <div className={styles.stat}><span className={styles.statNum} style={{ color: '#1565C0' }}>{stats.todo}</span><span className={styles.statLbl}>{lbl('Te doen', 'To do')}</span></div>
+        <div className={styles.stat}><span className={styles.statNum} style={{ color: '#E65100' }}>{stats.inProgress}</span><span className={styles.statLbl}>{lbl('Bezig', 'In progress')}</span></div>
+        <div className={styles.stat}><span className={styles.statNum} style={{ color: '#2E7D32' }}>{stats.done}</span><span className={styles.statLbl}>{lbl('Afgerond', 'Done')}</span></div>
+        {stats.overdue > 0 && (
+          <div className={styles.stat}>
+            <span className={styles.statNum} style={{ color: '#C8102E' }}>{stats.overdue}</span>
+            <span className={styles.statLbl}>{lbl('Verlopen', 'Overdue')}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.searchWrap}>
+          <Search size={15} className={styles.searchIcon} />
+          <input
+            className={styles.searchInput}
+            placeholder={lbl('Taken zoeken…', 'Search tasks…')}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <div className={styles.filters}>
+          <Filter size={14} style={{ color: 'var(--grey-300)' }} />
+          <select className={styles.filterSelect} value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
+            <option value="">{lbl('Alle prioriteiten', 'All priorities')}</option>
+            {Object.entries(PRIORITY_STYLE).map(([k, v]) => (
+              <option key={k} value={k}>{lang === 'nl' ? v.label_nl : v.label_en}</option>
+            ))}
+          </select>
+          <select className={styles.filterSelect} value={filterProject} onChange={e => setFilterProject(e.target.value)}>
+            <option value="">{lbl('Alle projecten', 'All projects')}</option>
+            {projectsSeed.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* KANBAN VIEW */}
+      {view === 'kanban' && (
+        <div className={styles.kanban}>
+          {STATUS_COLS.map(col => {
+            const colTasks = filtered.filter(t => t.status === col)
+            return (
+              <div key={col} className={styles.kanbanCol}>
+                <div className={styles.kanbanHeader}>
+                  <span className={styles.kanbanDot} style={{ background: COL_COLORS[col] }} />
+                  <span className={styles.kanbanTitle}>{lang === 'nl' ? COL_LABELS[col].nl : COL_LABELS[col].en}</span>
+                  <span className={styles.kanbanCount}>{colTasks.length}</span>
+                </div>
+                <div className={styles.kanbanCards}>
+                  {colTasks.length === 0 && (
+                    <div className={styles.emptyCol}>{lbl('Geen taken', 'No tasks')}</div>
+                  )}
+                  {colTasks.map(task => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      lang={lang}
+                      onToggle={() => toggleDone(task.id)}
+                      onEdit={() => openEdit(task)}
+                      onDelete={() => setDeleteId(task.id)}
+                      onMove={status => moveTask(task.id, status)}
+                      allCols={STATUS_COLS}
+                      colLabels={COL_LABELS}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* LIST VIEW */}
+      {view === 'list' && (
+        <div className={styles.listWrap}>
+          {[...filtered].sort((a, b) => {
+            const order = { urgent: 0, high: 1, medium: 2, low: 3 }
+            return (order[a.priority] ?? 9) - (order[b.priority] ?? 9)
+          }).map(task => {
+            const overdue = isOverdue(task)
+            const ps = PRIORITY_STYLE[task.priority] || PRIORITY_STYLE.medium
+            return (
+              <div key={task.id} className={`${styles.listRow} ${task.status === 'done' ? styles.listRowDone : ''}`}>
+                <button className={styles.checkBtn} onClick={() => toggleDone(task.id)}>
+                  {task.status === 'done'
+                    ? <CheckSquare size={18} className={styles.checkDone} />
+                    : <Square size={18} className={styles.checkEmpty} />}
+                </button>
+                <div className={styles.listMain}>
+                  <span className={`${styles.listTitle} ${task.status === 'done' ? styles.strikethrough : ''}`}>{task.title}</span>
+                  <div className={styles.listMeta}>
+                    {task.projectName && <span className={styles.metaItem}><Briefcase size={11} />{task.projectName}</span>}
+                    {task.assignee   && <span className={styles.metaItem}><User size={11} />{task.assignee}</span>}
+                    {task.dueDate    && (
+                      <span className={`${styles.metaItem} ${overdue ? styles.metaOverdue : ''}`}>
+                        <Calendar size={11} />{fmtDate(task.dueDate)}
+                        {overdue && <AlertTriangle size={10} />}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <span className={styles.priorityBadge} style={{ background: ps.bg, color: ps.color }}>
+                  {lang === 'nl' ? ps.label_nl : ps.label_en}
+                </span>
+                <div className={styles.listActions}>
+                  <button className={styles.actionBtn} onClick={() => openEdit(task)}><Pencil size={13} /></button>
+                  <button className={`${styles.actionBtn} ${styles.actionBtnRed}`} onClick={() => setDeleteId(task.id)}><Trash2 size={13} /></button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Form */}
+      {formOpen && <TaskForm task={editTarget} onSave={handleSave} onClose={closeForm} />}
+
+      {/* Delete confirm */}
+      {deleteId !== null && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <h3 className={styles.modalTitle}>{lbl('Taak verwijderen?', 'Delete task?')}</h3>
+            <p className={styles.modalMsg}>{lbl('Deze actie kan niet ongedaan worden gemaakt.', 'This action cannot be undone.')}</p>
+            <div className={styles.modalActions}>
+              <button className={styles.cancelBtn} onClick={() => setDeleteId(null)}>{lbl('Annuleren', 'Cancel')}</button>
+              <button className={styles.deleteBtn} onClick={() => handleDelete(deleteId)}>{lbl('Verwijderen', 'Delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TaskCard({ task, lang, onToggle, onEdit, onDelete, onMove, allCols, colLabels }) {
+  const overdue = isOverdue(task)
+  const ps = PRIORITY_STYLE[task.priority] || PRIORITY_STYLE.medium
+
+  return (
+    <div className={styles.card}>
+      <div className={styles.cardTop}>
+        <span className={styles.priorityBadge} style={{ background: ps.bg, color: ps.color }}>
+          {lang === 'nl' ? ps.label_nl : ps.label_en}
+        </span>
+        <div className={styles.cardActions}>
+          <button className={styles.actionBtn} onClick={onEdit}><Pencil size={13} /></button>
+          <button className={`${styles.actionBtn} ${styles.actionBtnRed}`} onClick={onDelete}><Trash2 size={13} /></button>
+        </div>
+      </div>
+
+      <div className={styles.cardTitleRow}>
+        <button className={styles.checkBtn} onClick={onToggle}>
+          {task.status === 'done'
+            ? <CheckSquare size={16} className={styles.checkDone} />
+            : <Square size={16} className={styles.checkEmpty} />}
+        </button>
+        <span className={`${styles.cardTitle} ${task.status === 'done' ? styles.strikethrough : ''}`}>{task.title}</span>
+      </div>
+
+      {task.description && <p className={styles.cardDesc}>{task.description}</p>}
+
+      <div className={styles.cardMeta}>
+        {task.projectName && <span className={styles.metaItem}><Briefcase size={11} />{task.projectName}</span>}
+        {task.assignee    && <span className={styles.metaItem}><User size={11} />{task.assignee}</span>}
+        {task.dueDate     && (
+          <span className={`${styles.metaItem} ${overdue ? styles.metaOverdue : ''}`}>
+            <Calendar size={11} />{fmtDate(task.dueDate)}
+            {overdue && <AlertTriangle size={10} />}
+          </span>
+        )}
+      </div>
+
+      {task.tags?.length > 0 && (
+        <div className={styles.tags}>
+          {task.tags.map(tag => <span key={tag} className={styles.tag}><Tag size={9} />{tag}</span>)}
+        </div>
+      )}
+
+      {/* Move buttons */}
+      <div className={styles.moveBtns}>
+        {allCols.filter(c => c !== task.status).map(c => (
+          <button key={c} className={styles.moveBtn} onClick={() => onMove(c)}>
+            → {lang === 'nl' ? colLabels[c].nl : colLabels[c].en}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}

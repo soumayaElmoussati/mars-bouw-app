@@ -1,0 +1,41 @@
+.wrap { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--grey-200); box-shadow: var(--shadow-sm); overflow: hidden; }
+.table { width: 100%; border-collapse: collapse; }
+.table thead tr { background: var(--grey-50); border-bottom: 1px solid var(--grey-200); }
+.table th { text-align: left; padding: 11px 14px; font-size: 11px; font-weight: 700; color: var(--grey-500); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.row { border-bottom: 1px solid var(--grey-100); transition: background var(--transition); }
+.row:last-child { border-bottom: none; }
+.row:hover { background: var(--grey-50); }
+.table td { padding: 12px 14px; font-size: 13px; color: var(--grey-700); vertical-align: middle; }
+
+.nameCell { display: flex; align-items: center; gap: 10px; }
+.specDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.name { font-weight: 600; color: var(--grey-900); font-size: 13.5px; }
+.sub { font-size: 11px; color: var(--grey-500); display: flex; align-items: center; gap: 3px; margin-top: 1px; }
+.specTag { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 20px; white-space: nowrap; }
+.contact { font-weight: 500; color: var(--grey-900); }
+.phone { font-size: 12.5px; white-space: nowrap; }
+
+.orderCount { font-size: 14px; font-weight: 700; color: var(--blue); margin-right: 6px; }
+.openBadge { font-size: 11px; font-weight: 600; background: #FFF3E0; color: #E65100; padding: 2px 7px; border-radius: 20px; }
+
+.statusBadge { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 20px; white-space: nowrap; display: inline-block; }
+
+.actions { display: flex; gap: 4px; justify-content: flex-end; }
+.actionBtn { background: none; border: none; cursor: pointer; padding: 5px; border-radius: var(--radius); color: var(--grey-300); display: flex; align-items: center; transition: background var(--transition), color var(--transition); }
+.actionBtn:hover { background: var(--grey-100); color: var(--grey-900); }
+.actionBtnRed:hover { background: #FFF0F3; color: var(--red); }
+
+.footer { padding: 10px 14px; font-size: 12px; color: var(--grey-500); text-align: right; border-top: 1px solid var(--grey-100); }
+.empty { padding: 60px; text-align: center; color: var(--grey-500); font-size: 14px; background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--grey-200); }
+
+/* Orders table additions */
+.orderNum { font-family: monospace; font-weight: 700; color: var(--blue); font-size: 13px; }
+.amount { font-weight: 700; color: var(--grey-900); text-align: right; font-size: 14px; }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+.payBadge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+.progWrap { display: flex; align-items: center; gap: 6px; }
+.progBar { flex: 1; height: 5px; background: var(--grey-100); border-radius: 10px; overflow: hidden; min-width: 60px; }
+.progFill { height: 100%; border-radius: 10px; }
+.progPct { font-size: 11px; font-weight: 700; color: var(--grey-700); width: 32px; text-align: right; }
+.payBtn { background: #E8F5E9; border: none; cursor: pointer; padding: 5px 9px; border-radius: var(--radius); color: #2E7D32; display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; transition: background var(--transition); }
+.payBtn:hover { background: #C8E6C9; }

@@ -1,0 +1,94 @@
+.page { display: flex; flex-direction: column; gap: 20px; }
+.pageHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.pageTitle { font-size: 22px; font-weight: 700; color: var(--grey-900); margin-bottom: 2px; }
+.pageSubtitle { font-size: 13.5px; color: var(--grey-500); }
+.addBtn { display: flex; align-items: center; gap: 7px; background: var(--blue); color: var(--white); border: none; border-radius: var(--radius); padding: 10px 18px; font-size: 13.5px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(26,62,111,.2); transition: background var(--transition); }
+.addBtn:hover { background: var(--blue-mid); }
+
+.statsRow { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+.statCard { background: var(--white); border-radius: var(--radius-lg); padding: 14px 18px; border-left: 4px solid; box-shadow: var(--shadow-sm); }
+.statVal { display: block; font-size: 26px; font-weight: 800; line-height: 1; margin-bottom: 3px; }
+.statLbl { font-size: 12px; color: var(--grey-500); font-weight: 500; }
+
+.toolbar { display: flex; gap: 10px; }
+.searchWrap { position: relative; flex: 1; }
+.searchIcon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--grey-300); pointer-events: none; }
+.searchInput { width: 100%; padding: 9px 12px 9px 34px; border: 1.5px solid var(--grey-200); border-radius: var(--radius); font-size: 13.5px; color: var(--grey-900); background: var(--white); outline: none; transition: border-color var(--transition); }
+.searchInput:focus { border-color: var(--blue-light); }
+
+.listWrap { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--grey-200); box-shadow: var(--shadow-sm); overflow: hidden; }
+.row { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--grey-100); cursor: pointer; transition: background var(--transition); }
+.row:last-child { border-bottom: none; }
+.row:hover { background: var(--grey-50); }
+.rowLeft { display: flex; align-items: center; gap: 12px; min-width: 240px; }
+.rowIcon { width: 36px; height: 36px; background: #EEF5FF; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--blue); flex-shrink: 0; }
+.rowNum { font-size: 13.5px; font-weight: 700; color: var(--grey-900); font-family: monospace; }
+.rowClient { font-size: 12px; color: var(--grey-500); }
+.rowMid { flex: 1; }
+.rowProject { font-size: 13px; color: var(--blue-light); font-weight: 500; }
+.rowRight { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.rowDate { font-size: 12.5px; color: var(--grey-500); }
+.rowHours,.rowWorkers { display: flex; align-items: center; gap: 3px; font-size: 12.5px; color: var(--grey-700); font-weight: 600; }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+.empty { padding: 60px; text-align: center; color: var(--grey-500); }
+
+/* Detail page */
+.detailPage { display: flex; flex-direction: column; gap: 20px; }
+.detailHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.detailHeaderLeft { display: flex; align-items: center; gap: 14px; }
+.detailTitle { font-size: 20px; font-weight: 700; color: var(--grey-900); font-family: monospace; }
+.detailHeaderRight { display: flex; align-items: center; gap: 8px; }
+.backBtn { background: none; border: 1.5px solid var(--grey-200); border-radius: var(--radius); padding: 8px 14px; font-size: 13px; font-weight: 600; color: var(--grey-700); cursor: pointer; }
+.backBtn:hover { background: var(--grey-100); }
+.signBtn { display: flex; align-items: center; gap: 6px; background: #E8F5E9; border: 1.5px solid #81C784; border-radius: var(--radius); padding: 8px 14px; font-size: 13px; font-weight: 600; color: #2E7D32; cursor: pointer; }
+.editBtn,.saveBtn2,.cancelBtn,.printBtn,.actionBtn2 { display: flex; align-items: center; gap: 5px; border-radius: var(--radius); padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
+.editBtn { background: var(--grey-100); color: var(--grey-700); border: 1.5px solid var(--grey-200); }
+.saveBtn2 { background: var(--blue); color: var(--white); }
+.saveBtn2:hover { background: var(--blue-mid); }
+.cancelBtn { background: none; border: 1.5px solid var(--grey-200); color: var(--grey-700); }
+.printBtn { background: var(--grey-100); color: var(--grey-700); border: 1.5px solid var(--grey-200); }
+.actionBtn2 { background: none; border: 1.5px solid var(--grey-200); color: var(--grey-700); }
+.actionBtnRed { color: var(--red) !important; }
+.actionBtnRed:hover { background: #FFF0F3 !important; }
+
+.detailBody { display: flex; flex-direction: column; gap: 16px; }
+.wbSection { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--grey-200); overflow: hidden; box-shadow: var(--shadow-sm); }
+.wbSectionHeader { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; background: var(--grey-50); border-bottom: 1px solid var(--grey-200); }
+.wbSectionTitle { font-size: 13px; font-weight: 700; color: var(--grey-900); text-transform: uppercase; letter-spacing: .04em; }
+
+.twoCol { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 18px; }
+.wbField { display: flex; flex-direction: column; gap: 4px; }
+.wbFieldLbl { font-size: 11.5px; font-weight: 600; color: var(--grey-500); text-transform: uppercase; letter-spacing: .05em; }
+.val { font-size: 14px; color: var(--grey-900); font-weight: 500; }
+.inp,.inpSm { padding: 7px 10px; border: 1.5px solid var(--grey-200); border-radius: var(--radius); font-size: 13px; color: var(--grey-900); background: var(--white); outline: none; width: 100%; transition: border-color var(--transition); }
+.inp:focus,.inpSm:focus { border-color: var(--blue-light); }
+.inpNum { width: 70px; text-align: right; padding: 7px 10px; border: 1.5px solid var(--grey-200); border-radius: var(--radius); font-size: 13px; color: var(--grey-900); background: var(--white); outline: none; }
+.inpFull { width: 100%; min-width: 160px; }
+.textarea { width: 100%; padding: 8px 10px; border: 1.5px solid var(--grey-200); border-radius: var(--radius); font-size: 13px; color: var(--grey-900); background: var(--white); outline: none; resize: vertical; min-height: 70px; }
+
+.wbTable { width: 100%; border-collapse: collapse; }
+.wbTable th { text-align: left; padding: 8px 14px; font-size: 11px; font-weight: 700; color: var(--grey-500); text-transform: uppercase; background: var(--grey-50); border-bottom: 1px solid var(--grey-200); }
+.wbTable td { padding: 9px 14px; font-size: 13px; color: var(--grey-700); border-bottom: 1px solid var(--grey-100); }
+.wbTable tbody tr:last-child td { border-bottom: none; }
+.wbTable tfoot td { padding: 9px 14px; background: var(--grey-50); font-size: 13px; border-top: 1px solid var(--grey-200); }
+.tfootLabel { color: var(--grey-500); font-weight: 600; }
+.emptyCell { font-style: italic; color: var(--grey-300); text-align: center; padding: 16px; }
+.check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--blue); }
+.addRowBtn { display: flex; align-items: center; gap: 5px; background: none; border: 1.5px dashed var(--grey-300); border-radius: var(--radius); padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--grey-500); cursor: pointer; }
+.addRowBtn:hover { border-color: var(--blue-light); color: var(--blue); }
+.remBtn { background: none; border: none; cursor: pointer; color: var(--grey-300); padding: 3px; display: flex; border-radius: 4px; }
+.remBtn:hover { color: var(--red); background: #FFF0F3; }
+
+.notesGrid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; padding: 16px 18px; }
+.noteLbl { font-size: 11.5px; font-weight: 600; color: var(--grey-500); text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 6px; }
+.noteText { font-size: 13.5px; color: var(--grey-900); line-height: 1.5; }
+
+/* Signature */
+.signedBox { display: flex; align-items: center; gap: 14px; padding: 20px 18px; }
+.signedName { font-size: 14px; color: var(--grey-900); }
+.signedDate { font-size: 12px; color: var(--grey-500); margin-top: 2px; }
+.noSig { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 32px; color: var(--grey-500); font-size: 14px; }
+.signingBox { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.signCanvas { height: 120px; border: 2px dashed var(--grey-300); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; color: var(--grey-400, var(--grey-300)); font-size: 13px; background: var(--grey-50); }
+.signingFields label { font-size: 12.5px; font-weight: 600; color: var(--grey-700); display: block; margin-bottom: 5px; }
+.signingActions { display: flex; gap: 8px; justify-content: flex-end; }

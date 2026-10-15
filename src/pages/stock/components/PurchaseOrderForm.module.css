@@ -1,0 +1,61 @@
+.overlay { position: fixed; inset: 0; background: rgba(10,20,40,.45); z-index: 200; display: flex; justify-content: flex-end; animation: fadeIn .15s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.panel { width: 100%; max-width: 640px; height: 100vh; background: var(--white); display: flex; flex-direction: column; animation: slideIn .2s ease; overflow: hidden; }
+@keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+.header { display: flex; align-items: center; justify-content: space-between; padding: 20px 28px; border-bottom: 1px solid var(--grey-200); flex-shrink: 0; }
+.title { font-size: 17px; font-weight: 700; color: var(--grey-900); }
+.closeBtn { background: none; border: none; cursor: pointer; color: var(--grey-500); padding: 6px; border-radius: var(--radius); display: flex; transition: background var(--transition); }
+.closeBtn:hover { background: var(--grey-100); }
+
+.form { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.body { flex: 1; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 24px; }
+
+.section { display: flex; flex-direction: column; gap: 12px; }
+.sectionLbl { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--grey-500); padding-bottom: 8px; border-bottom: 1px solid var(--grey-100); }
+
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.lbl { font-size: 12.5px; font-weight: 600; color: var(--grey-700); }
+.req { color: var(--red); }
+.errMsg { font-size: 11.5px; color: var(--red); font-weight: 500; }
+
+.input, .select, .textarea {
+  padding: 9px 12px; border: 1.5px solid var(--grey-200); border-radius: var(--radius);
+  font-size: 13.5px; color: var(--grey-900); background: var(--white);
+  outline: none; width: 100%;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.input:focus, .select:focus, .textarea:focus { border-color: var(--blue-light); box-shadow: 0 0 0 3px rgba(45,107,181,.10); }
+.textarea { resize: vertical; min-height: 70px; }
+
+.prefixWrap { position: relative; display: flex; align-items: center; }
+.prefix { position: absolute; left: 12px; font-size: 13px; color: var(--grey-500); font-weight: 600; pointer-events: none; }
+.inputPfx { padding-left: 26px; }
+
+/* Item rows */
+.itemRow { display: flex; align-items: center; gap: 8px; background: var(--grey-50); border-radius: var(--radius); padding: 8px 10px; }
+.itemSelect { flex: 2; min-width: 0; }
+.itemQty { width: 72px; flex-shrink: 0; }
+.itemPrice { width: 90px; }
+.lineTotal { font-size: 13px; font-weight: 700; color: var(--grey-900); white-space: nowrap; min-width: 70px; text-align: right; }
+.removeItemBtn { background: none; border: none; cursor: pointer; color: var(--grey-400, var(--grey-300)); padding: 4px; border-radius: var(--radius); display: flex; flex-shrink: 0; transition: color var(--transition); }
+.removeItemBtn:hover { color: var(--red); }
+
+.addItemBtn {
+  display: flex; align-items: center; gap: 6px;
+  background: none; border: 1.5px dashed var(--grey-300); border-radius: var(--radius);
+  padding: 8px 14px; font-size: 13px; font-weight: 600; color: var(--grey-500);
+  cursor: pointer; transition: all var(--transition); align-self: flex-start;
+}
+.addItemBtn:hover { border-color: var(--blue-light); color: var(--blue); background: #EEF5FF; }
+
+.totalRow { display: flex; justify-content: space-between; align-items: center; padding: 10px 10px; background: var(--blue); border-radius: var(--radius); }
+.totalLbl { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.8); }
+.totalAmt { font-size: 16px; font-weight: 800; color: var(--white); }
+
+.footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 16px 28px; border-top: 1px solid var(--grey-200); background: var(--grey-50); flex-shrink: 0; }
+.cancelBtn { background: none; border: 1.5px solid var(--grey-200); border-radius: var(--radius); padding: 9px 20px; font-size: 13.5px; font-weight: 600; color: var(--grey-700); cursor: pointer; transition: background var(--transition); }
+.cancelBtn:hover { background: var(--grey-100); }
+.saveBtn { background: var(--blue); color: var(--white); border: none; border-radius: var(--radius); padding: 9px 22px; font-size: 13.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background var(--transition); }
+.saveBtn:hover { background: var(--blue-mid); }

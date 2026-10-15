@@ -1,0 +1,16 @@
+import { Outlet } from 'react-router-dom'
+import Sidebar from './Sidebar'
+import Header from './Header'
+import styles from './Layout.module.css'
+
+export default function Layout({ onLogout }) {
+  return (
+    <div className={styles.shell}>
+      <Sidebar />
+      <Header onLogout={onLogout} />
+      <main className={styles.main}>
+        <Outlet />
+      </main>
+    </div>
+  )
+}

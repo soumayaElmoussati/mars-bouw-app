@@ -1,0 +1,35 @@
+.wrap { display: flex; flex-direction: column; gap: 10px; }
+.table { width: 100%; border-collapse: collapse; background: var(--grey-50); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--grey-200); }
+.table th { padding: 8px 10px; font-size: 11px; font-weight: 700; color: var(--grey-500); text-align: left; text-transform: uppercase; letter-spacing: .04em; background: var(--white); border-bottom: 1px solid var(--grey-200); }
+.table td { padding: 6px 8px; vertical-align: middle; border-bottom: 1px solid var(--grey-100); }
+.table tbody tr:last-child td { border-bottom: none; }
+
+.input, .inputSm, .inputNum {
+  border: 1.5px solid var(--grey-200); border-radius: 6px;
+  padding: 6px 9px; font-size: 13px; color: var(--grey-900);
+  background: var(--white); outline: none; width: 100%;
+  transition: border-color var(--transition);
+}
+.input:focus, .inputSm:focus, .inputNum:focus { border-color: var(--blue-light); }
+.inputDesc { min-width: 160px; }
+.inputNum { width: 70px; text-align: right; }
+.inputSm { min-width: 80px; }
+
+.priceWrap { position: relative; display: flex; align-items: center; }
+.prefix { position: absolute; left: 8px; font-size: 12px; color: var(--grey-500); pointer-events: none; }
+.inputPrice { padding-left: 20px; }
+
+.subtotal { font-weight: 600; color: var(--grey-900); font-size: 13px; white-space: nowrap; text-align: right; }
+
+.removeBtn { background: none; border: none; cursor: pointer; color: var(--grey-300); padding: 4px; border-radius: 4px; display: flex; transition: color var(--transition); }
+.removeBtn:hover { color: var(--red); }
+
+.addBtn { display: flex; align-items: center; gap: 6px; background: none; border: 1.5px dashed var(--grey-300); border-radius: var(--radius); padding: 7px 14px; font-size: 13px; font-weight: 600; color: var(--grey-500); cursor: pointer; transition: all var(--transition); align-self: flex-start; }
+.addBtn:hover { border-color: var(--blue-light); color: var(--blue); background: #EEF5FF; }
+
+.totals { background: var(--grey-50); border-radius: var(--radius); padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--grey-200); align-self: flex-end; min-width: 280px; }
+.totalRow { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--grey-700); }
+.totalRow strong { font-weight: 600; color: var(--grey-900); }
+.totalFinal { border-top: 1.5px solid var(--grey-300); padding-top: 6px; margin-top: 2px; }
+.totalFinal span { font-weight: 700; font-size: 14px; color: var(--grey-900); }
+.totalFinal strong { font-size: 16px; font-weight: 800; color: var(--blue); }

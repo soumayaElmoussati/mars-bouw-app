@@ -1,0 +1,57 @@
+.wrap { display: flex; flex-direction: column; gap: 16px; }
+.header { display: flex; align-items: center; justify-content: space-between; }
+.title { font-size: 15px; font-weight: 700; color: var(--grey-900); }
+.addBtn { display: flex; align-items: center; gap: 6px; background: var(--blue); color: var(--white); border: none; border-radius: var(--radius); padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background var(--transition); }
+.addBtn:hover { background: var(--blue-mid); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+
+.card { background: var(--white); border-radius: var(--radius-lg); padding: 16px; border-top: 4px solid; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 12px; transition: box-shadow var(--transition); }
+.card:hover { box-shadow: var(--shadow-md); }
+
+.cardTop { display: flex; align-items: center; gap: 10px; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--white); font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.info { flex: 1; min-width: 0; }
+.name { display: block; font-size: 14px; font-weight: 700; color: var(--grey-900); }
+.role { font-size: 12px; color: var(--grey-500); }
+.statusDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+.rates { display: flex; align-items: center; background: var(--grey-50); border-radius: var(--radius); padding: 10px 12px; gap: 0; }
+.rate { flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center; }
+.rateLbl { font-size: 10.5px; color: var(--grey-500); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.rateVal { font-size: 13.5px; font-weight: 800; color: var(--grey-900); }
+.rateSep { width: 1px; height: 30px; background: var(--grey-200); margin: 0 8px; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-top: 1px solid var(--grey-100); padding-top: 10px; }
+.statItem { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.statVal { font-size: 15px; font-weight: 700; color: var(--grey-900); }
+.statLbl { font-size: 10.5px; color: var(--grey-500); text-align: center; }
+
+.contact { font-size: 12px; color: var(--grey-500); }
+
+.cardActions { display: flex; gap: 4px; justify-content: flex-end; border-top: 1px solid var(--grey-100); padding-top: 8px; }
+.actionBtn { background: none; border: none; cursor: pointer; padding: 5px; border-radius: var(--radius); color: var(--grey-300); display: flex; transition: background var(--transition), color var(--transition); }
+.actionBtn:hover { background: var(--grey-100); color: var(--grey-900); }
+.actionBtnRed:hover { background: #FFF0F3; color: var(--red); }
+
+/* Modal */
+.overlay { position: fixed; inset: 0; background: rgba(10,20,40,.45); z-index: 300; display: flex; align-items: center; justify-content: center; }
+.formPanel { background: var(--white); border-radius: var(--radius-lg); width: 90%; max-width: 520px; box-shadow: var(--shadow-lg); overflow: hidden; animation: popIn .15s ease; }
+@keyframes popIn { from { transform: scale(.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.formHeader { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--grey-200); }
+.formHeader h3 { font-size: 15px; font-weight: 700; color: var(--grey-900); }
+.formClose { background: none; border: none; cursor: pointer; color: var(--grey-500); padding: 4px; border-radius: var(--radius); display: flex; }
+.formBody { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; max-height: 70vh; overflow-y: auto; }
+.fRow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fField { display: flex; flex-direction: column; gap: 4px; }
+.fField label { font-size: 12.5px; font-weight: 600; color: var(--grey-700); }
+.fInput { padding: 8px 12px; border: 1.5px solid var(--grey-200); border-radius: var(--radius); font-size: 13.5px; color: var(--grey-900); background: var(--white); outline: none; width: 100%; transition: border-color var(--transition); }
+.fInput:focus { border-color: var(--blue-light); }
+.colorRow { display: flex; gap: 8px; flex-wrap: wrap; }
+.colorDot { width: 28px; height: 28px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: transform var(--transition), border-color var(--transition); }
+.colorDot:hover { transform: scale(1.15); }
+.colorActive { border-color: var(--grey-900); transform: scale(1.15); }
+.formFooter { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--grey-200); background: var(--grey-50); }
+.cancelBtn { background: none; border: 1.5px solid var(--grey-200); border-radius: var(--radius); padding: 8px 18px; font-size: 13.5px; font-weight: 600; color: var(--grey-700); cursor: pointer; }
+.saveBtn { background: var(--blue); color: var(--white); border: none; border-radius: var(--radius); padding: 8px 18px; font-size: 13.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.saveBtn:hover { background: var(--blue-mid); }

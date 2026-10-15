@@ -1,0 +1,381 @@
+import { useState, useRef, useMemo } from 'react'
+import {
+  Plus, Search, FileText, Pencil, Trash2, CheckCircle,
+  Clock, User, Package, Camera, PenLine, X, ChevronRight,
+  Download, Printer, AlertTriangle
+} from 'lucide-react'
+import { useLang } from '../../i18n/LanguageContext'
+import { werkbonSeed } from '../../data/werkbonSeed'
+import { projectsSeed } from '../../data/projectsSeed'
+import { workersSeed } from '../../data/timetrackingSeed'
+import styles from './WerkbonPage.module.css'
+
+const STATUS_STYLE = {
+  concept:     { bg:'#F5F5F5', color:'#757575', nl:'Concept',       en:'Draft' },
+  verzonden:   { bg:'#E3F2FD', color:'#1565C0', nl:'Verzonden',     en:'Sent' },
+  ondertekend: { bg:'#E8F5E9', color:'#2E7D32', nl:'Ondertekend',  en:'Signed' },
+}
+
+function fmtDate(d) {
+  if (!d) return '—'
+  const [y,m,day] = d.split('-'); return `${day}-${m}-${y}`
+}
+
+export default function WerkbonPage() {
+  const { lang } = useLang()
+  const lbl = (nl,en) => lang==='nl'?nl:en
+
+  const [werkbonnen, setWerkbonnen] = useState(werkbonSeed)
+  const [search,     setSearch]     = useState('')
+  const [view,       setView]       = useState('list') // 'list' | 'detail' | 'form'
+  const [selected,   setSelected]   = useState(null)
+  const [editMode,   setEditMode]   = useState(false)
+  const signRef = useRef(null)
+  const [signing,    setSigning]    = useState(false)
+  const [signedBy,   setSignedBy]   = useState('')
+
+  const filtered = useMemo(() => werkbonnen.filter(w => {
+    const q = search.toLowerCase()
+    if (q && !w.number.toLowerCase().includes(q) && !w.clientName.toLowerCase().includes(q) && !w.projectName.toLowerCase().includes(q)) return false
+    return true
+  }).sort((a,b)=>b.date.localeCompare(a.date)), [werkbonnen, search])
+
+  const stats = useMemo(() => ({
+    total:      werkbonnen.length,
+    concept:    werkbonnen.filter(w=>w.status==='concept').length,
+    verzonden:  werkbonnen.filter(w=>w.status==='verzonden').length,
+    ondertekend:werkbonnen.filter(w=>w.status==='ondertekend').length,
+  }), [werkbonnen])
+
+  function openNew() {
+    const id = Math.max(0,...werkbonnen.map(w=>w.id))+1
+    const num = `WB-${new Date().getFullYear()}-${String(id).padStart(3,'0')}`
+    const blank = {
+      id, number:num, projectId:'', projectName:'', clientName:'', clientAddress:'',
+      date: new Date().toISOString().slice(0,10),
+      workers:[], works:[], materials:[], photos:[], notes:'', problems:'', nextSteps:'',
+      status:'concept', clientSignature:null, clientSignedBy:null, signedAt:null,
+      createdAt: new Date().toISOString().slice(0,10),
+    }
+    setSelected(blank); setEditMode(true); setView('detail')
+  }
+
+  function saveCurrent(data) {
+    if (werkbonnen.find(w=>w.id===data.id)) {
+      setWerkbonnen(ws=>ws.map(w=>w.id===data.id?data:w))
+    } else {
+      setWerkbonnen(ws=>[...ws,data])
+    }
+    setSelected(data); setEditMode(false)
+  }
+
+  function handleSign() {
+    if (!signedBy.trim()) return
+    const updated = {
+      ...selected,
+      status:'ondertekend',
+      clientSignedBy: signedBy,
+      signedAt: new Date().toISOString(),
+    }
+    saveCurrent(updated)
+    setSigning(false)
+  }
+
+  if (view === 'detail' && selected) {
+    return (
+      <WerkbonDetail
+        werkbon={selected}
+        editMode={editMode}
+        lang={lang}
+        signing={signing}
+        signedBy={signedBy}
+        onSignedByChange={setSignedBy}
+        onStartSign={()=>setSigning(true)}
+        onCancelSign={()=>setSigning(false)}
+        onSign={handleSign}
+        onEdit={()=>setEditMode(true)}
+        onSave={saveCurrent}
+        onCancelEdit={()=>{ if(!werkbonnen.find(w=>w.id===selected.id)){ setView('list');setSelected(null) } else setEditMode(false) }}
+        onBack={()=>{ setView('list'); setSelected(null); setEditMode(false); setSigning(false) }}
+        onDelete={id=>{ setWerkbonnen(ws=>ws.filter(w=>w.id!==id)); setView('list'); setSelected(null) }}
+      />
+    )
+  }
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>{lbl('Werkbonnen','Work orders')}</h1>
+          <p className={styles.pageSubtitle}>{lbl('Dagelijkse werkregistratie en klanthandtekening','Daily work records and client signatures')}</p>
+        </div>
+        <button className={styles.addBtn} onClick={openNew}><Plus size={15}/>{lbl('Nieuwe werkbon','New work order')}</button>
+      </div>
+
+      <div className={styles.statsRow}>
+        {[
+          { label:lbl('Totaal','Total'),         value:stats.total,       color:'#1A3E6F' },
+          { label:lbl('Concept','Draft'),         value:stats.concept,     color:'#757575' },
+          { label:lbl('Verzonden','Sent'),        value:stats.verzonden,   color:'#1565C0' },
+          { label:lbl('Ondertekend','Signed'),    value:stats.ondertekend, color:'#2E7D32' },
+        ].map(s=>(
+          <div key={s.label} className={styles.statCard} style={{borderLeftColor:s.color}}>
+            <span className={styles.statVal} style={{color:s.color}}>{s.value}</span>
+            <span className={styles.statLbl}>{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className={styles.toolbar}>
+        <div className={styles.searchWrap}>
+          <Search size={14} className={styles.searchIcon}/>
+          <input className={styles.searchInput} placeholder={lbl('Zoeken op nummer, klant, project…','Search by number, client, project…')} value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
+      </div>
+
+      <div className={styles.listWrap}>
+        {filtered.length === 0 && <div className={styles.empty}>{lbl('Geen werkbonnen gevonden','No work orders found')}</div>}
+        {filtered.map(wb => {
+          const st = STATUS_STYLE[wb.status] || STATUS_STYLE.concept
+          const totalHours = wb.workers.reduce((s,w)=>s+w.hours,0)
+          return (
+            <div key={wb.id} className={styles.row} onClick={()=>{setSelected(wb);setView('detail');setEditMode(false)}}>
+              <div className={styles.rowLeft}>
+                <div className={styles.rowIcon}><FileText size={16}/></div>
+                <div>
+                  <div className={styles.rowNum}>{wb.number}</div>
+                  <div className={styles.rowClient}>{wb.clientName}</div>
+                </div>
+              </div>
+              <div className={styles.rowMid}>
+                <span className={styles.rowProject}>{wb.projectName}</span>
+              </div>
+              <div className={styles.rowRight}>
+                <span className={styles.rowDate}>{fmtDate(wb.date)}</span>
+                <span className={styles.rowHours}><Clock size={11}/>{totalHours.toFixed(1)} u</span>
+                <span className={styles.rowWorkers}><User size={11}/>{wb.workers.length}</span>
+                <span className={styles.badge} style={{background:st.bg,color:st.color}}>
+                  {lang==='nl'?st.nl:st.en}
+                  {wb.status==='ondertekend'&&<CheckCircle size={11} style={{marginLeft:3}}/>}
+                </span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Werkbon Detail / Edit View ────────────────────────────────────────────────
+function WerkbonDetail({ werkbon, editMode, lang, signing, signedBy, onSignedByChange, onStartSign, onCancelSign, onSign, onEdit, onSave, onCancelEdit, onBack, onDelete }) {
+  const lbl = (nl,en) => lang==='nl'?nl:en
+  const [data, setData] = useState({...werkbon})
+
+  function set(k,v) { setData(d=>({...d,[k]:v})) }
+
+  function addWorker()   { set('workers',[...data.workers,{workerId:'',name:'',startTime:'07:30',endTime:'16:30',breakMinutes:30,hours:8}]) }
+  function setWorker(i,k,v) { const ws=[...data.workers]; ws[i]={...ws[i],[k]:v}; set('workers',ws) }
+  function remWorker(i)  { set('workers',data.workers.filter((_,j)=>j!==i)) }
+
+  function addWork()   { set('works',[...data.works,{id:Date.now(),description:'',qty:1,unit:'stuk',done:false}]) }
+  function setWork(i,k,v) { const ws=[...data.works]; ws[i]={...ws[i],[k]:v}; set('works',ws) }
+  function remWork(i)  { set('works',data.works.filter((_,j)=>j!==i)) }
+
+  function addMat()    { set('materials',[...data.materials,{id:Date.now(),name:'',qty:1,unit:'stuk'}]) }
+  function setMat(i,k,v) { const ms=[...data.materials]; ms[i]={...ms[i],[k]:v}; set('materials',ms) }
+  function remMat(i)   { set('materials',data.materials.filter((_,j)=>j!==i)) }
+
+  const totalHours = data.workers.reduce((s,w)=>s+(+w.hours||0),0)
+  const st = STATUS_STYLE[data.status] || STATUS_STYLE.concept
+
+  return (
+    <div className={styles.detailPage}>
+      {/* Header */}
+      <div className={styles.detailHeader}>
+        <div className={styles.detailHeaderLeft}>
+          <button className={styles.backBtn} onClick={onBack}>← {lbl('Terug','Back')}</button>
+          <div>
+            <h1 className={styles.detailTitle}>{data.number}</h1>
+            <span className={styles.badge} style={{background:st.bg,color:st.color}}>{lang==='nl'?st.nl:st.en}</span>
+          </div>
+        </div>
+        <div className={styles.detailHeaderRight}>
+          {!editMode && data.status !== 'ondertekend' && (
+            <button className={styles.signBtn} onClick={onStartSign}><PenLine size={14}/>{lbl('Laten ondertekenen','Get signature')}</button>
+          )}
+          {!editMode && <button className={styles.editBtn} onClick={onEdit}><Pencil size={14}/>{lbl('Bewerken','Edit')}</button>}
+          {editMode  && <button className={styles.saveBtn2} onClick={()=>onSave(data)}><ChevronRight size={14}/>{lbl('Opslaan','Save')}</button>}
+          {editMode  && <button className={styles.cancelBtn} onClick={onCancelEdit}>{lbl('Annuleren','Cancel')}</button>}
+          <button className={styles.printBtn}><Printer size={14}/></button>
+          <button className={`${styles.actionBtn2} ${styles.actionBtnRed}`} onClick={()=>onDelete(data.id)}><Trash2 size={14}/></button>
+        </div>
+      </div>
+
+      <div className={styles.detailBody}>
+        {/* Project & date */}
+        <WbSection title={lbl('Projectgegevens','Project details')}>
+          <div className={styles.twoCol}>
+            <WbField label={lbl('Project','Project')} edit={editMode}>
+              {editMode
+                ? <select className={styles.inp} value={data.projectId} onChange={e=>{
+                    const p=projectsSeed.find(p=>String(p.id)===e.target.value)
+                    setData(d=>({...d,projectId:+e.target.value,projectName:p?p.name:'',clientName:p?p.clientName||'':'',clientAddress:p?p.address||'':''}))
+                  }}>
+                    <option value="">— {lbl('Selecteer','Select')} —</option>
+                    {projectsSeed.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                : <span className={styles.val}>{data.projectName||'—'}</span>
+              }
+            </WbField>
+            <WbField label={lbl('Datum','Date')} edit={editMode}>
+              {editMode ? <input type="date" className={styles.inp} value={data.date} onChange={e=>set('date',e.target.value)}/> : <span className={styles.val}>{fmtDate(data.date)}</span>}
+            </WbField>
+            <WbField label={lbl('Klant','Client')} edit={editMode}>
+              {editMode ? <input className={styles.inp} value={data.clientName} onChange={e=>set('clientName',e.target.value)}/> : <span className={styles.val}>{data.clientName||'—'}</span>}
+            </WbField>
+            <WbField label={lbl('Adres uitvoering','Site address')} edit={editMode}>
+              {editMode ? <input className={styles.inp} value={data.clientAddress} onChange={e=>set('clientAddress',e.target.value)}/> : <span className={styles.val}>{data.clientAddress||'—'}</span>}
+            </WbField>
+          </div>
+        </WbSection>
+
+        {/* Workers */}
+        <WbSection title={lbl('Medewerkers & Uren','Workers & Hours')} action={editMode && <button className={styles.addRowBtn} onClick={addWorker}><Plus size={12}/>{lbl('Toevoegen','Add')}</button>}>
+          <table className={styles.wbTable}>
+            <thead><tr>
+              <th>{lbl('Naam','Name')}</th><th>{lbl('Start','Start')}</th><th>{lbl('Einde','End')}</th><th>{lbl('Pauze','Break')}</th><th>{lbl('Uren','Hours')}</th>
+              {editMode&&<th/>}
+            </tr></thead>
+            <tbody>
+              {data.workers.length === 0 && <tr><td colSpan={6} className={styles.emptyCell}>{lbl('Geen medewerkers','No workers')}</td></tr>}
+              {data.workers.map((w,i)=>(
+                <tr key={i}>
+                  <td>{editMode
+                    ? <select className={styles.inpSm} value={w.workerId} onChange={e=>{const wk=workersSeed.find(wk=>String(wk.id)===e.target.value);setWorker(i,'workerId',+e.target.value);if(wk)setWorker(i,'name',wk.name)}}>
+                        <option value="">—</option>
+                        {workersSeed.map(wk=><option key={wk.id} value={wk.id}>{wk.name}</option>)}
+                      </select>
+                    : w.name}
+                  </td>
+                  <td>{editMode?<input type="time" className={styles.inpSm} value={w.startTime} onChange={e=>setWorker(i,'startTime',e.target.value)}/>:w.startTime}</td>
+                  <td>{editMode?<input type="time" className={styles.inpSm} value={w.endTime} onChange={e=>setWorker(i,'endTime',e.target.value)}/>:w.endTime}</td>
+                  <td>{editMode?<input type="number" min="0" className={styles.inpNum} value={w.breakMinutes} onChange={e=>setWorker(i,'breakMinutes',+e.target.value)}/>:<span>{w.breakMinutes}m</span>}</td>
+                  <td><strong>{(+w.hours||0).toFixed(1)} u</strong></td>
+                  {editMode&&<td><button className={styles.remBtn} onClick={()=>remWorker(i)}><X size={12}/></button></td>}
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr><td colSpan={4} className={styles.tfootLabel}>{lbl('Totaal uren','Total hours')}</td><td><strong>{totalHours.toFixed(1)} u</strong></td>{editMode&&<td/>}</tr>
+            </tfoot>
+          </table>
+        </WbSection>
+
+        {/* Works */}
+        <WbSection title={lbl('Uitgevoerde werkzaamheden','Work performed')} action={editMode && <button className={styles.addRowBtn} onClick={addWork}><Plus size={12}/>{lbl('Toevoegen','Add')}</button>}>
+          <table className={styles.wbTable}>
+            <thead><tr><th>{lbl('Omschrijving','Description')}</th><th>{lbl('Qty','Qty')}</th><th>{lbl('Eenheid','Unit')}</th><th>✓</th>{editMode&&<th/>}</tr></thead>
+            <tbody>
+              {data.works.length === 0 && <tr><td colSpan={5} className={styles.emptyCell}>{lbl('Geen werkzaamheden','No work items')}</td></tr>}
+              {data.works.map((w,i)=>(
+                <tr key={i}>
+                  <td>{editMode?<input className={`${styles.inpSm} ${styles.inpFull}`} value={w.description} onChange={e=>setWork(i,'description',e.target.value)} placeholder={lbl('Omschrijving…','Description…')}/>:w.description}</td>
+                  <td>{editMode?<input type="number" min="0" className={styles.inpNum} value={w.qty} onChange={e=>setWork(i,'qty',+e.target.value)}/>:w.qty}</td>
+                  <td>{editMode?<select className={styles.inpSm} value={w.unit} onChange={e=>setWork(i,'unit',e.target.value)}>
+                    {['stuk','dag','uur','meter','m²','m³'].map(u=><option key={u} value={u}>{u}</option>)}
+                  </select>:w.unit}</td>
+                  <td>
+                    <input type="checkbox" checked={w.done} onChange={e=>setWork(i,'done',e.target.checked)} className={styles.check}/>
+                  </td>
+                  {editMode&&<td><button className={styles.remBtn} onClick={()=>remWork(i)}><X size={12}/></button></td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </WbSection>
+
+        {/* Materials */}
+        <WbSection title={lbl('Gebruikte materialen','Materials used')} action={editMode && <button className={styles.addRowBtn} onClick={addMat}><Plus size={12}/>{lbl('Toevoegen','Add')}</button>}>
+          <table className={styles.wbTable}>
+            <thead><tr><th>{lbl('Materiaal','Material')}</th><th>{lbl('Qty','Qty')}</th><th>{lbl('Eenheid','Unit')}</th>{editMode&&<th/>}</tr></thead>
+            <tbody>
+              {data.materials.length === 0 && <tr><td colSpan={4} className={styles.emptyCell}>{lbl('Geen materialen','No materials')}</td></tr>}
+              {data.materials.map((m,i)=>(
+                <tr key={i}>
+                  <td>{editMode?<input className={`${styles.inpSm} ${styles.inpFull}`} value={m.name} onChange={e=>setMat(i,'name',e.target.value)} placeholder={lbl('Materiaalnaam…','Material name…')}/>:m.name}</td>
+                  <td>{editMode?<input type="number" min="0" className={styles.inpNum} value={m.qty} onChange={e=>setMat(i,'qty',+e.target.value)}/>:m.qty}</td>
+                  <td>{editMode?<select className={styles.inpSm} value={m.unit} onChange={e=>setMat(i,'unit',e.target.value)}>
+                    {['stuk','meter','m²','kg','liter','zak','rol','doos'].map(u=><option key={u} value={u}>{u}</option>)}
+                  </select>:m.unit}</td>
+                  {editMode&&<td><button className={styles.remBtn} onClick={()=>remMat(i)}><X size={12}/></button></td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </WbSection>
+
+        {/* Notes */}
+        <WbSection title={lbl('Notities & Bevindingen','Notes & Findings')}>
+          <div className={styles.notesGrid}>
+            {[['notes',lbl('Algemene notities','General notes')],['problems',lbl('Problemen / bijzonderheden','Issues / remarks')],['nextSteps',lbl('Vervolgacties','Next steps')]].map(([k,l])=>(
+              <div key={k}>
+                <label className={styles.noteLbl}>{l}</label>
+                {editMode
+                  ? <textarea className={styles.textarea} rows={3} value={data[k]} onChange={e=>set(k,e.target.value)} placeholder="…"/>
+                  : <p className={styles.noteText}>{data[k]||<em style={{color:'var(--grey-300)'}}>—</em>}</p>
+                }
+              </div>
+            ))}
+          </div>
+        </WbSection>
+
+        {/* Signature */}
+        <WbSection title={lbl('Handtekening opdrachtgever','Client signature')}>
+          {data.status === 'ondertekend' ? (
+            <div className={styles.signedBox}>
+              <CheckCircle size={22} style={{color:'#2E7D32'}}/>
+              <div>
+                <p className={styles.signedName}>{lbl('Ondertekend door','Signed by')}: <strong>{data.clientSignedBy}</strong></p>
+                <p className={styles.signedDate}>{data.signedAt ? new Date(data.signedAt).toLocaleString(lang==='nl'?'nl-NL':'en-GB') : ''}</p>
+              </div>
+            </div>
+          ) : signing ? (
+            <div className={styles.signingBox}>
+              <div className={styles.signCanvas}>{lbl('Handtekening veld (backend)','Signature field (backend)')}</div>
+              <div className={styles.signingFields}>
+                <label>{lbl('Naam ondertekenaar','Signer name')}</label>
+                <input className={styles.inp} value={signedBy} onChange={e=>onSignedByChange(e.target.value)} placeholder={lbl('Volledige naam…','Full name…')}/>
+              </div>
+              <div className={styles.signingActions}>
+                <button className={styles.cancelBtn} onClick={onCancelSign}>{lbl('Annuleren','Cancel')}</button>
+                <button className={styles.saveBtn2} onClick={onSign}><PenLine size={14}/>{lbl('Bevestig handtekening','Confirm signature')}</button>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.noSig}>
+              <PenLine size={20} style={{color:'var(--grey-300)'}}/>
+              <p>{lbl('Nog niet ondertekend','Not yet signed')}</p>
+              {!editMode && <button className={styles.signBtn} onClick={onStartSign}>{lbl('Nu ondertekenen','Sign now')}</button>}
+            </div>
+          )}
+        </WbSection>
+      </div>
+    </div>
+  )
+}
+
+function WbSection({title, children, action}) {
+  return (
+    <div className={styles.wbSection}>
+      <div className={styles.wbSectionHeader}>
+        <h3 className={styles.wbSectionTitle}>{title}</h3>
+        {action}
+      </div>
+      {children}
+    </div>
+  )
+}
+function WbField({label, children}) {
+  return <div className={styles.wbField}><label className={styles.wbFieldLbl}>{label}</label>{children}</div>
+}

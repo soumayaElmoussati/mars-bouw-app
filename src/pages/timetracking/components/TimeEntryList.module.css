@@ -1,0 +1,76 @@
+.wrap { display: flex; flex-direction: column; gap: 8px; }
+
+.dayBlock { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--grey-200); overflow: hidden; box-shadow: var(--shadow-sm); }
+.weekend { opacity: .75; background: var(--grey-50); }
+.today { border-color: var(--blue-light); box-shadow: 0 0 0 2px rgba(45,107,181,.12), var(--shadow-sm); }
+
+.dayHeader { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--grey-50); border-bottom: 1px solid var(--grey-100); }
+.dayInfo { display: flex; align-items: center; gap: 8px; }
+.dayName { font-size: 13px; font-weight: 700; color: var(--grey-700); }
+.todayLabel { color: var(--blue); }
+.todayBadge { font-size: 10.5px; font-weight: 700; background: var(--blue); color: var(--white); padding: 1px 8px; border-radius: 20px; }
+.daySummary { display: flex; align-items: center; gap: 12px; }
+.dayHours { font-size: 13.5px; font-weight: 700; color: var(--grey-900); }
+.dayCost  { font-size: 12.5px; font-weight: 600; color: var(--grey-500); }
+
+.emptyDay { padding: 10px 16px; font-size: 13px; color: var(--grey-300); font-style: italic; }
+
+.entries { display: flex; flex-direction: column; }
+
+/* Single entry */
+.entry {
+  display: flex; align-items: stretch; gap: 0;
+  border-bottom: 1px solid var(--grey-100);
+  transition: background var(--transition);
+}
+.entry:last-child { border-bottom: none; }
+.entry:hover { background: var(--grey-50); }
+.entryApproved { opacity: .85; }
+
+.entryStrip { width: 4px; flex-shrink: 0; }
+
+.workerAvatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--white); font-size: 11px; font-weight: 700;
+  flex-shrink: 0; margin: 12px 10px 12px 12px; align-self: flex-start;
+}
+
+.entryMain { flex: 1; padding: 12px 8px 12px 0; min-width: 0; }
+.entryTop { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
+.workerName { font-size: 13.5px; font-weight: 700; color: var(--grey-900); }
+.workerRole { font-size: 12px; color: var(--grey-500); }
+.projectBadge { font-size: 11.5px; font-weight: 600; background: var(--grey-100); color: var(--blue); padding: 1px 8px; border-radius: 20px; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.description { font-size: 13px; color: var(--grey-700); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entryMeta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.timeRange { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--grey-700); font-weight: 500; }
+.breakTime { font-size: 11.5px; color: var(--grey-400, var(--grey-300)); }
+.workTypeBadge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+
+/* Numbers */
+.entryNumbers { display: flex; flex-direction: column; align-items: flex-end; padding: 12px 12px 12px 0; justify-content: center; gap: 2px; min-width: 110px; }
+.entryHours { font-size: 16px; font-weight: 800; color: var(--grey-900); }
+.entryRate  { font-size: 11px; color: var(--grey-500); }
+.entryCost  { font-size: 13.5px; font-weight: 700; color: var(--blue); }
+
+/* Status & actions */
+.entryRight { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; padding: 12px; gap: 8px; min-width: 130px; }
+.statusBadge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+.entryActions { display: flex; gap: 3px; }
+.approveBtn { background: #E8F5E9; border: none; cursor: pointer; padding: 5px; border-radius: var(--radius); color: #2E7D32; display: flex; align-items: center; transition: background var(--transition); }
+.approveBtn:hover { background: #C8E6C9; }
+.actionBtn { background: none; border: none; cursor: pointer; padding: 5px; border-radius: var(--radius); color: var(--grey-300); display: flex; align-items: center; transition: background var(--transition), color var(--transition); }
+.actionBtn:hover { background: var(--grey-100); color: var(--grey-900); }
+.actionBtnRed:hover { background: #FFF0F3; color: var(--red); }
+
+/* Week footer */
+.weekFooter { background: var(--blue); border-radius: var(--radius-lg); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; }
+.weekFooterLabel { font-size: 13.5px; font-weight: 700; color: rgba(255,255,255,.8); }
+.weekFooterNums { display: flex; align-items: center; gap: 20px; }
+.weekFooterNums span { font-size: 13px; color: rgba(255,255,255,.7); }
+.footerHours { font-size: 17px; font-weight: 800; color: var(--white) !important; }
+.footerCost  { font-size: 15px; font-weight: 700; color: #90CAF9 !important; }
+
+/* Empty state */
+.empty { text-align: center; padding: 60px 24px; background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--grey-200); color: var(--grey-500); font-size: 14px; }
+.emptySub { font-size: 13px; color: var(--grey-400, var(--grey-300)); margin-top: 6px; }
