@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/dashboard/DashboardPage'
+import DashboardPage from './pages/dashboard/Dashboardpage'
 import ClientsPage from './pages/clients/ClientsPage'
 import ProjectsPage from './pages/projects/ProjectsPage'
 import PlanningPage from './pages/planning/PlanningPage'
