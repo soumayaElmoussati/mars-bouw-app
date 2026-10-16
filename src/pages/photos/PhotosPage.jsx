@@ -1,7 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Plus, Search, Filter, X, ZoomIn,
-  Camera, Calendar, User, Trash2, Edit3, ChevronLeft, ChevronRight
+  Camera, Calendar, User, Trash2, Edit3, ChevronLeft, ChevronRight,
+  AlertCircle
 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { api } from '../../api/client'
@@ -25,6 +26,59 @@ function fmtDate(d) {
 // Support snake_case (DB) and camelCase
 function g(o, camel, snake) { return o[camel] !== undefined ? o[camel] : o[snake] }
 
+/* ── Confirm Modal (inline) ──────────────────────────────────────────────── */
+function ConfirmModal({ title, message, confirmLabel, cancelLabel, onConfirm, onCancel }) {
+  return (
+    <div
+      onClick={e => e.target === e.currentTarget && onCancel()}
+      style={{
+        position:'fixed', inset:0, background:'rgba(0,0,0,0.45)',
+        zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center',
+        animation:'cmFadeIn .15s ease',
+      }}>
+      <style>{`
+        @keyframes cmFadeIn  { from{opacity:0} to{opacity:1} }
+        @keyframes cmSlideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+      `}</style>
+      <div style={{
+        background:'white', borderRadius:14, padding:'28px 28px 22px',
+        width:400, maxWidth:'90vw',
+        boxShadow:'0 20px 60px rgba(0,0,0,0.2)',
+        animation:'cmSlideUp .2s ease',
+      }}>
+        <div style={{
+          width:46, height:46, borderRadius:'50%',
+          background:'#FFF0F3', display:'flex', alignItems:'center',
+          justifyContent:'center', marginBottom:14,
+        }}>
+          <AlertCircle size={22} color="#C8102E"/>
+        </div>
+        <h3 style={{fontSize:15.5, fontWeight:700, color:'#1A1A2E', marginBottom:8}}>{title}</h3>
+        <p style={{fontSize:13.5, color:'#6B7280', lineHeight:1.6, marginBottom:22}}>{message}</p>
+        <div style={{display:'flex', gap:10, justifyContent:'flex-end'}}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding:'8px 18px', borderRadius:8, border:'1px solid #E0E0E0',
+              background:'white', color:'#555', fontSize:13.5, fontWeight:500, cursor:'pointer',
+            }}>
+            {cancelLabel}
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              padding:'8px 18px', borderRadius:8, border:'none',
+              background:'#C8102E', color:'white',
+              fontSize:13.5, fontWeight:600, cursor:'pointer',
+            }}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function PhotosPage() {
   const { lang } = useLang()
   const lbl = (nl, en) => lang === 'nl' ? nl : en
@@ -41,6 +95,9 @@ export default function PhotosPage() {
   const [uploadModal,    setUploadModal]    = useState(false)
   const [editPhoto,      setEditPhoto]      = useState(null)
   const [uploadCategory, setUploadCategory] = useState('uitvoering')
+  const [confirmId,      setConfirmId]      = useState(null)
+
+  const confirmPhoto = photos.find(p => p.id === confirmId)
 
   useEffect(() => { load() }, [])
 
@@ -116,12 +173,18 @@ export default function PhotosPage() {
   }
 
   async function deletePhoto(id) {
-    if (!confirm(lbl('Foto verwijderen?','Delete photo?'))) return
     try {
       await api.delete(`/photos/${id}`)
       setPhotos(ps => ps.filter(p => p.id !== id))
       if (lightbox?.id === id) setLightbox(null)
     } catch (e) { alert(e.message) }
+  }
+
+  function handleConfirmDelete() {
+    if (confirmId) {
+      deletePhoto(confirmId)
+      setConfirmId(null)
+    }
   }
 
   // Stats per category
@@ -131,17 +194,26 @@ export default function PhotosPage() {
     return m
   }, [photos])
 
-  if (loading) return (
-    <div className={styles.page}>
-      <div style={{ display:'flex', justifyContent:'center', padding:60 }}>
-        <div style={{ width:32, height:32, border:'3px solid #e0e0e0', borderTopColor:'#1A3E6F', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    </div>
-  )
+  if (loading) return <PhotosSkeleton lang={lang} lbl={lbl} viewMode={viewMode} />
 
   return (
     <div className={styles.page}>
+
+      {/* Confirm delete */}
+      {confirmId && (
+        <ConfirmModal
+          title={lbl('Foto verwijderen', 'Delete photo')}
+          message={lbl(
+            `Weet u zeker dat u deze foto wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`,
+            `Are you sure you want to delete this photo? This cannot be undone.`
+          )}
+          confirmLabel={lbl('Verwijderen', 'Delete')}
+          cancelLabel={lbl('Annuleren', 'Cancel')}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
+
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>{lbl("Foto's chantier",'Site photos')}</h1>
@@ -226,7 +298,7 @@ export default function PhotosPage() {
                 </div>
                 <div className={styles.cardActions}>
                   <button className={styles.cardBtn} onClick={() => setEditPhoto({...photo})}><Edit3 size={13}/></button>
-                  <button className={`${styles.cardBtn} ${styles.cardBtnRed}`} onClick={() => deletePhoto(photo.id)}><Trash2 size={13}/></button>
+                  <button className={`${styles.cardBtn} ${styles.cardBtnRed}`} onClick={() => setConfirmId(photo.id)}><Trash2 size={13}/></button>
                 </div>
               </div>
             )
@@ -256,7 +328,7 @@ export default function PhotosPage() {
                         <div className={styles.cardMeta}><span><Calendar size={10}/>{fmtDate(photo.date)}</span></div>
                       </div>
                       <div className={styles.cardActions}>
-                        <button className={`${styles.cardBtn} ${styles.cardBtnRed}`} onClick={() => deletePhoto(photo.id)}><Trash2 size={13}/></button>
+                        <button className={`${styles.cardBtn} ${styles.cardBtnRed}`} onClick={() => setConfirmId(photo.id)}><Trash2 size={13}/></button>
                       </div>
                     </div>
                   )
@@ -329,12 +401,150 @@ export default function PhotosPage() {
               <p className={styles.lbCaption}>{lightbox.caption}</p>
               {g(lightbox,'projectName','project_name') && <p className={styles.lbProject}>{g(lightbox,'projectName','project_name')}</p>}
               <div className={styles.lbActions}>
-                <button className={styles.lbDelBtn} onClick={() => deletePhoto(lightbox.id)}>
+                <button className={styles.lbDelBtn} onClick={() => { setConfirmId(lightbox.id); }}>
                   <Trash2 size={13}/>{lbl('Verwijderen','Delete')}
                 </button>
               </div>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ───────────────────────── SKELETON ───────────────────────── */
+
+function Shimmer({ w = '100%', h = 14, r = 6, style = {} }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%)',
+      backgroundSize: '400% 100%',
+      animation: 'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }} />
+  )
+}
+
+function SkeletonPhotoCard({ index }) {
+  const captionWidths = ['75%', '60%', '85%', '70%']
+  const ratio = index % 3 === 0 ? 1.15 : index % 3 === 1 ? 0.85 : 1
+
+  return (
+    <div className={styles.card} style={{ pointerEvents: 'none' }}>
+      <div className={styles.cardImg} style={{ paddingTop: `${ratio * 70}%`, position: 'relative', overflow: 'hidden' }}>
+        <Shimmer
+          w="100%"
+          h="100%"
+          r={0}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+        />
+        <Shimmer
+          w={70}
+          h={20}
+          r={10}
+          style={{ position: 'absolute', top: 10, left: 10 }}
+        />
+      </div>
+      <div className={styles.cardBody}>
+        <Shimmer w={captionWidths[index % captionWidths.length]} h={13} style={{ marginBottom: 8 }} />
+        <div style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+          <Shimmer w={70} h={10} />
+          <Shimmer w={60} h={10} />
+        </div>
+        <Shimmer w={`${50 + (index % 2) * 15}%`} h={10} />
+      </div>
+      <div className={styles.cardActions}>
+        <Shimmer w={28} h={28} r={6} />
+        <Shimmer w={28} h={28} r={6} />
+      </div>
+    </div>
+  )
+}
+
+function SkeletonProjectGroup({ index }) {
+  return (
+    <div className={styles.projectGroup}>
+      <div style={{ marginBottom: 14 }}>
+        <Shimmer w={200} h={16} />
+      </div>
+      <div className={styles.grid}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <SkeletonPhotoCard key={i} index={i + index} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PhotosSkeleton({ lang, lbl, viewMode }) {
+  return (
+    <div className={styles.page}>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>{lbl("Foto's chantier",'Site photos')}</h1>
+          <p className={styles.pageSubtitle}>{lbl('Voor, tijdens en na de werkzaamheden','Before, during and after works')}</p>
+        </div>
+        <div className={styles.headerRight}>
+          <div className={styles.viewToggle}>
+            <Shimmer w={90} h={32} r={6} />
+            <Shimmer w={110} h={32} r={6} />
+          </div>
+          <Shimmer w={160} h={38} r={8} />
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className={styles.statsRow}>
+        <div className={styles.statCard} style={{ borderLeftColor: '#e0e0e0' }}>
+          <Shimmer w={40} h={22} style={{ marginBottom: 6 }} />
+          <Shimmer w={90} h={11} />
+        </div>
+        {CATEGORIES.slice(0,4).map(c => (
+          <div key={c.key} className={styles.statCard} style={{ borderLeftColor: c.color, pointerEvents: 'none' }}>
+            <Shimmer w={40} h={22} style={{ marginBottom: 6 }} />
+            <Shimmer w={70} h={11} />
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.searchWrap}>
+          <Shimmer w={14} h={14} r={4} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+          <Shimmer w="100%" h={38} r={8} />
+        </div>
+        <div className={styles.filters}>
+          <Shimmer w={14} h={14} r={4} />
+          <Shimmer w={150} h={38} r={8} />
+          <Shimmer w={150} h={38} r={8} />
+        </div>
+      </div>
+
+      {/* Grid view */}
+      {viewMode === 'grid' && (
+        <div className={styles.grid}>
+          {Array.from({ length: 9 }).map((_, i) => (
+            <SkeletonPhotoCard key={i} index={i} />
+          ))}
+        </div>
+      )}
+
+      {/* Project view */}
+      {viewMode === 'project' && (
+        <div className={styles.projectGroups}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonProjectGroup key={i} index={i} />
+          ))}
         </div>
       )}
     </div>

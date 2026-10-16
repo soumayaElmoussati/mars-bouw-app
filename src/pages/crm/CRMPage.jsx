@@ -111,19 +111,17 @@ export default function CRMPage() {
   // ── Client list view ─────────────────────────────────────────────────────────
   if (!selected) return (
     <div className={styles.page}>
-      {loading ? (
-        <div style={{ display:'flex', justifyContent:'center', padding:60 }}>
-          <div style={{ width:32, height:32, border:'3px solid #e0e0e0', borderTopColor:'#1A3E6F', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>CRM</h1>
+          <p className={styles.pageSubtitle}>{lbl('360° klantenoverzicht','360° client overview')}</p>
         </div>
+      </div>
+
+      {loading ? (
+        <CRMListSkeleton lbl={lbl} />
       ) : (
         <>
-          <div className={styles.pageHeader}>
-            <div>
-              <h1 className={styles.pageTitle}>CRM</h1>
-              <p className={styles.pageSubtitle}>{lbl('360° klantenoverzicht','360° client overview')}</p>
-            </div>
-          </div>
           <div className={styles.searchWrap}>
             <Search size={15} className={styles.searchIcon}/>
             <input className={styles.searchInput} placeholder={lbl('Klant zoeken…','Search client…')} value={search} onChange={e => setSearch(e.target.value)}/>
@@ -192,10 +190,10 @@ export default function CRMPage() {
         </div>
         <div className={styles.heroKpis}>
           {[
-            { label:lbl('Projecten','Projects'), val:projects.length,   color:'var(--blue)' },
-            { label:lbl('Offertes','Quotes'),    val:offertes.length,   color:'#7B1FA2' },
-            { label:lbl('Facturen','Invoices'),  val:facturen.length,   color:'#E65100' },
-            { label:lbl('Omzet','Revenue'),      val:fmtEur(facturen.reduce((s,f) => s + (+f.total_incl||0), 0)), color:'#2E7D32' },
+            { label:lbl('Projecten','Projects'), val:loading360 ? '—' : projects.length,   color:'var(--blue)' },
+            { label:lbl('Offertes','Quotes'),    val:loading360 ? '—' : offertes.length,   color:'#7B1FA2' },
+            { label:lbl('Facturen','Invoices'),  val:loading360 ? '—' : facturen.length,   color:'#E65100' },
+            { label:lbl('Omzet','Revenue'),      val:loading360 ? '—' : fmtEur(facturen.reduce((s,f) => s + (+f.total_incl||0), 0)), color:'#2E7D32' },
           ].map(k => (
             <div key={k.label} className={styles.heroKpi}>
               <span className={styles.heroKpiVal} style={{ color: k.color }}>{k.val}</span>
@@ -206,10 +204,7 @@ export default function CRMPage() {
       </div>
 
       {loading360 ? (
-        <div style={{ display:'flex', justifyContent:'center', padding:40 }}>
-          <div style={{ width:28, height:28, border:'3px solid #e0e0e0', borderTopColor:'#1A3E6F', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-        </div>
+        <CRMDetailSkeleton lbl={lbl} />
       ) : (
         <div className={styles.detail360}>
           {/* Left col */}
@@ -392,5 +387,159 @@ function Section({ title, children, action }) {
       </div>
       <div className={styles.sectionBody}>{children}</div>
     </div>
+  )
+}
+
+/* ───────────────────────── SKELETON ───────────────────────── */
+
+function Shimmer({ w = '100%', h = 14, r = 6, style = {} }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%)',
+      backgroundSize: '400% 100%',
+      animation: 'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }} />
+  )
+}
+
+function SkeletonClientCard({ index }) {
+  return (
+    <div className={styles.clientCard} style={{ pointerEvents: 'none' }}>
+      <div className={styles.ccTop}>
+        <Shimmer w={40} h={40} r={20} />
+        <div className={styles.ccInfo} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <Shimmer w={`${50 + (index % 3) * 15}%`} h={13} />
+          <Shimmer w={`${30 + (index % 2) * 10}%`} h={10} />
+        </div>
+        <Shimmer w={10} h={10} r={5} />
+      </div>
+      <div className={styles.ccContact} style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+        <Shimmer w={70} h={10} />
+        <Shimmer w={90} h={10} />
+      </div>
+    </div>
+  )
+}
+
+function CRMListSkeleton({ lbl }) {
+  return (
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      {/* Search bar */}
+      <div className={styles.searchWrap}>
+        <Shimmer w={15} h={15} r={4} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+        <Shimmer w="100%" h={38} r={8} />
+      </div>
+
+      {/* Client grid */}
+      <div className={styles.clientGrid}>
+        {Array.from({ length: 9 }).map((_, i) => (
+          <SkeletonClientCard key={i} index={i} />
+        ))}
+      </div>
+    </>
+  )
+}
+
+function SkeletonMiniRow() {
+  return (
+    <div className={styles.miniRow} style={{ pointerEvents: 'none' }}>
+      <Shimmer w={10} h={10} r={5} />
+      <div className={styles.miniInfo} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <Shimmer w="65%" h={12} />
+        <Shimmer w="45%" h={10} />
+      </div>
+    </div>
+  )
+}
+
+function SkeletonContactRow() {
+  return (
+    <div className={styles.contactRow} style={{ pointerEvents: 'none' }}>
+      <Shimmer w={36} h={36} r={18} />
+      <div className={styles.contactInfo} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <Shimmer w="55%" h={12} />
+        <Shimmer w="40%" h={10} />
+        <Shimmer w="70%" h={10} />
+      </div>
+    </div>
+  )
+}
+
+function SkeletonSection({ title, rows = 3, variant = 'mini' }) {
+  return (
+    <div className={styles.sectionCard}>
+      <div className={styles.sectionHeader}>
+        <h3 className={styles.sectionTitle}>{title}</h3>
+        <Shimmer w={24} h={24} r={6} />
+      </div>
+      <div className={styles.sectionBody}>
+        {Array.from({ length: rows }).map((_, i) =>
+          variant === 'contact'
+            ? <SkeletonContactRow key={i} />
+            : <SkeletonMiniRow key={i} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SkeletonTimelineItem() {
+  return (
+    <div className={styles.timelineItem} style={{ pointerEvents: 'none' }}>
+      <Shimmer w={28} h={28} r={14} />
+      <div className={styles.tlContent} style={{ flex: 1 }}>
+        <div className={styles.tlTop} style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+          <Shimmer w={70} h={11} />
+          <Shimmer w={60} h={11} />
+          <Shimmer w={50} h={11} />
+        </div>
+        <Shimmer w="90%" h={11} style={{ marginBottom: 5 }} />
+        <Shimmer w="70%" h={11} style={{ marginBottom: 8 }} />
+        <Shimmer w={140} h={16} r={8} />
+      </div>
+    </div>
+  )
+}
+
+function CRMDetailSkeleton({ lbl }) {
+  return (
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      <div className={styles.detail360}>
+        {/* Left col */}
+        <div className={styles.leftCol}>
+          <SkeletonSection title={lbl('Contactpersonen','Contacts')} rows={2} variant="contact" />
+          <SkeletonSection title={lbl('Projecten','Projects')}       rows={3} />
+          <SkeletonSection title={lbl('Offertes','Quotes')}          rows={2} />
+          <SkeletonSection title={lbl('Facturen','Invoices')}        rows={3} />
+        </div>
+
+        {/* Right col: timeline */}
+        <div className={styles.rightCol}>
+          <div className={styles.timelineHeader}>
+            <h3 className={styles.sectionTitle}>{lbl('Activiteitenlogboek','Activity log')}</h3>
+            <Shimmer w={80} h={26} r={6} />
+          </div>
+          <div className={styles.timeline}>
+            {Array.from({ length: 5 }).map((_, i) => <SkeletonTimelineItem key={i} />)}
+          </div>
+        </div>
+      </div>
+    </>
   )
 }

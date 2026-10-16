@@ -13,7 +13,22 @@ const STATUS_STYLE = {
 
 function fmtDate(d) {
   if (!d) return '—'
-  const [y, m, day] = d.split('-'); return `${day}-${m}-${y}`
+
+  // Si c'est déjà un ISO string complet (avec T et Z), on parse en Date
+  if (typeof d === 'string' && (d.includes('T') || d.includes('Z'))) {
+    const parsed = new Date(d)
+    if (!isNaN(parsed.getTime())) {
+      const day  = String(parsed.getDate()).padStart(2, '0')
+      const m    = String(parsed.getMonth() + 1).padStart(2, '0')
+      const y    = parsed.getFullYear()
+      return `${day}-${m}-${y}`
+    }
+  }
+
+  // Sinon format simple YYYY-MM-DD
+  const raw = String(d).slice(0, 10)
+  const [y, m, day] = raw.split('-')
+  return `${day}-${m}-${y}`
 }
 
 export default function UitgavenList({ uitgaven, search, filterStatus, lang, onEdit, onDelete }) {
@@ -25,7 +40,7 @@ export default function UitgavenList({ uitgaven, search, filterStatus, lang, onE
     if (q && !u.description.toLowerCase().includes(q) && !u.supplier?.toLowerCase().includes(q)) return false
     if (filterStatus && u.status !== filterStatus) return false
     return true
-  }).sort((a, b) => b.date.localeCompare(a.date))
+  }).sort((a, b) => String(b.date).localeCompare(String(a.date)))
 
   const totalExcl = filtered.reduce((s, u) => s + u.amount, 0)
   const totalBtw  = filtered.reduce((s, u) => s + (u.btwAmount || 0), 0)

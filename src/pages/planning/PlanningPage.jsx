@@ -135,14 +135,7 @@ export default function PlanningPage() {
   const weekEnd   = weekDates[6]
   const weekLabel = `${weekStart.getDate()} ${MONTHS[weekStart.getMonth()]} — ${weekEnd.getDate()} ${MONTHS[weekEnd.getMonth()]} ${weekEnd.getFullYear()}`
 
-  if (loading) return (
-    <div className={styles.page}>
-      <div style={{ display:'flex', justifyContent:'center', padding: 60 }}>
-        <div style={{ width:32, height:32, border:'3px solid #e0e0e0', borderTopColor:'#1A3E6F', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    </div>
-  )
+  if (loading) return <PlanningSkeleton lang={lang} DAYS={DAYS} MONTHS={MONTHS} lbl={lbl} />
 
   return (
     <div className={styles.page}>
@@ -305,6 +298,160 @@ function DetailRow({ icon: Icon, label, value }) {
       <Icon size={14} className={styles.detailIcon}/>
       <span className={styles.detailLabel}>{label}</span>
       <span className={styles.detailValue}>{value}</span>
+    </div>
+  )
+}
+
+/* ───────────────────────── SKELETON ───────────────────────── */
+
+function Shimmer({ w = '100%', h = 14, r = 6, style = {} }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%)',
+      backgroundSize: '400% 100%',
+      animation: 'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }} />
+  )
+}
+
+function SkeletonEventPill({ index }) {
+  const widths = ['60%', '75%', '55%', '70%']
+  return (
+    <div className={styles.eventPill}
+      style={{
+        background: '#f5f5f5',
+        borderLeft: '3px solid #e0e0e0',
+        pointerEvents: 'none',
+        opacity: 0.85,
+      }}>
+      <Shimmer w={34} h={10} style={{ marginBottom: 4 }} />
+      <Shimmer w={widths[index % widths.length]} h={11} style={{ marginBottom: 4 }} />
+      <Shimmer w={45} h={9} />
+    </div>
+  )
+}
+
+function SkeletonListRow({ index }) {
+  const widths = ['55%', '70%', '60%', '65%']
+  return (
+    <div className={styles.listRow} style={{ pointerEvents: 'none' }}>
+      <Shimmer w={4} h={44} r={2} />
+      <div className={styles.listMain} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Shimmer w={widths[index % widths.length]} h={13} />
+        <Shimmer w={120} h={10} />
+      </div>
+      <div className={styles.listMeta} style={{ display: 'flex', gap: 16 }}>
+        <Shimmer w={140} h={11} />
+        <Shimmer w={90} h={11} />
+        <Shimmer w={80} h={11} />
+      </div>
+      <Shimmer w={70} h={20} r={10} />
+    </div>
+  )
+}
+
+function PlanningSkeleton({ lang, DAYS, MONTHS, lbl }) {
+  // Fake dates pour l'en-tête de semaine
+  const fakeWeekDates = (() => {
+    const d = new Date()
+    const day = d.getDay()
+    const monday = new Date(d)
+    monday.setDate(d.getDate() - ((day + 6) % 7))
+    return Array.from({ length: 7 }, (_, i) => {
+      const nd = new Date(monday); nd.setDate(monday.getDate() + i); return nd
+    })
+  })()
+
+  const todayStr = isoDate(new Date())
+
+  // Nombre d'events fantômes par jour (varié pour un rendu naturel)
+  const eventsPerDay = [2, 1, 3, 0, 2, 1, 2]
+
+  return (
+    <div className={styles.page}>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>{lbl('Planning', 'Planning')}</h1>
+          <p className={styles.pageSubtitle}>{lbl('Weekoverzicht van alle werkzaamheden', 'Weekly overview of all work')}</p>
+        </div>
+        <div className={styles.headerRight}>
+          <div className={styles.viewToggle}>
+            <Shimmer w={90} h={32} r={6} />
+            <Shimmer w={90} h={32} r={6} />
+          </div>
+          <Shimmer w={120} h={36} r={8} />
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.navGroup}>
+          <Shimmer w={32} h={32} r={6} />
+          <Shimmer w={200} h={16} />
+          <Shimmer w={32} h={32} r={6} />
+          <Shimmer w={80} h={32} r={6} />
+        </div>
+        <div className={styles.filters}>
+          <Shimmer w={14} h={14} r={4} />
+          <Shimmer w={150} h={36} r={8} />
+          <Shimmer w={130} h={36} r={8} />
+        </div>
+      </div>
+
+      {/* Week calendar */}
+      <div className={styles.calendarWrap}>
+        <div className={styles.calendar}>
+          {fakeWeekDates.map((date, i) => {
+            const isToday = isoDate(date) === todayStr
+            return (
+              <div key={i} className={`${styles.dayHeader} ${isToday ? styles.dayHeaderToday : ''}`}>
+                <span className={styles.dayName}>{DAYS[date.getDay()]}</span>
+                <span className={`${styles.dayNum} ${isToday ? styles.dayNumToday : ''}`}>{date.getDate()}</span>
+              </div>
+            )
+          })}
+          {fakeWeekDates.map((date, i) => {
+            const isToday = isoDate(date) === todayStr
+            const count   = eventsPerDay[i]
+            return (
+              <div key={i}
+                className={`${styles.dayCol} ${isToday ? styles.dayColToday : ''}`}
+                style={{ pointerEvents: 'none' }}>
+                {Array.from({ length: count }).map((_, j) => (
+                  <SkeletonEventPill key={j} index={j + i} />
+                ))}
+                {count === 0 && <div className={styles.emptyDay}/>}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PlanningListSkeleton() {
+  return (
+    <div className={styles.listWrap}>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <SkeletonListRow key={i} index={i} />
+      ))}
     </div>
   )
 }

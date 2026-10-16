@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   Plus, Search, FileText, Pencil, Trash2, CheckCircle,
-  Clock, User, PenLine, X, ChevronRight, Printer
+  Clock, User, PenLine, X, ChevronRight, Printer,
+  AlertCircle
 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { api } from '../../api/client'
@@ -16,6 +17,59 @@ const STATUS_STYLE = {
 function fmtDate(d) {
   if (!d) return '—'
   return d.toString().slice(0, 10).split('-').reverse().join('-')
+}
+
+/* ── Confirm Modal (inline) ──────────────────────────────────────────────── */
+function ConfirmModal({ title, message, confirmLabel, cancelLabel, onConfirm, onCancel }) {
+  return (
+    <div
+      onClick={e => e.target === e.currentTarget && onCancel()}
+      style={{
+        position:'fixed', inset:0, background:'rgba(0,0,0,0.45)',
+        zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center',
+        animation:'cmFadeIn .15s ease',
+      }}>
+      <style>{`
+        @keyframes cmFadeIn  { from{opacity:0} to{opacity:1} }
+        @keyframes cmSlideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+      `}</style>
+      <div style={{
+        background:'white', borderRadius:14, padding:'28px 28px 22px',
+        width:400, maxWidth:'90vw',
+        boxShadow:'0 20px 60px rgba(0,0,0,0.2)',
+        animation:'cmSlideUp .2s ease',
+      }}>
+        <div style={{
+          width:46, height:46, borderRadius:'50%',
+          background:'#FFF0F3', display:'flex', alignItems:'center',
+          justifyContent:'center', marginBottom:14,
+        }}>
+          <AlertCircle size={22} color="#C8102E"/>
+        </div>
+        <h3 style={{fontSize:15.5, fontWeight:700, color:'#1A1A2E', marginBottom:8}}>{title}</h3>
+        <p style={{fontSize:13.5, color:'#6B7280', lineHeight:1.6, marginBottom:22}}>{message}</p>
+        <div style={{display:'flex', gap:10, justifyContent:'flex-end'}}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding:'8px 18px', borderRadius:8, border:'1px solid #E0E0E0',
+              background:'white', color:'#555', fontSize:13.5, fontWeight:500, cursor:'pointer',
+            }}>
+            {cancelLabel}
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              padding:'8px 18px', borderRadius:8, border:'none',
+              background:'#C8102E', color:'white',
+              fontSize:13.5, fontWeight:600, cursor:'pointer',
+            }}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function WerkbonPage() {
@@ -33,6 +87,10 @@ export default function WerkbonPage() {
   const [saving,     setSaving]     = useState(false)
   const [signing,    setSigning]    = useState(false)
   const [signedBy,   setSignedBy]   = useState('')
+
+  // Confirm delete state
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  // { id, number, client_name }
 
   useEffect(() => { load() }, [])
 
@@ -101,13 +159,28 @@ export default function WerkbonPage() {
     } catch (e) { alert(e.message) }
   }
 
-  async function handleDelete(id) {
-    if (!confirm(lbl('Werkbon verwijderen?', 'Delete work order?'))) return
+  // Suppression réelle (appelée depuis la modale)
+  async function performDelete(id) {
     try {
       await api.delete(`/werkbon/${id}`)
       setWerkbonnen(ws => ws.filter(w => w.id !== id))
       setView('list'); setSelected(null)
     } catch (e) { alert(e.message) }
+  }
+
+  // Ouverture de la modale de confirmation
+  function requestDelete(werkbon) {
+    setConfirmDelete({
+      id: werkbon.id,
+      number: werkbon.number || '',
+      client_name: werkbon.client_name || '',
+    })
+  }
+
+  function handleConfirmDelete() {
+    if (!confirmDelete) return
+    performDelete(confirmDelete.id)
+    setConfirmDelete(null)
   }
 
   function toApiPayload(data) {
@@ -140,44 +213,69 @@ export default function WerkbonPage() {
     }
   }
 
-  if (loading) return (
-    <div className={styles.page}>
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-        <div style={{ width: 32, height: 32, border: '3px solid #e0e0e0', borderTopColor: '#1A3E6F', borderRadius: '50%', animation: 'spin .7s linear infinite' }}/>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    </div>
-  )
+  if (loading) return <WerkbonListSkeleton lbl={lbl} />
 
   if (view === 'detail' && selected) {
     return (
-      <WerkbonDetail
-        werkbon={selected}
-        editMode={editMode}
-        lang={lang}
-        projects={projects}
-        workers={workers}
-        saving={saving}
-        signing={signing}
-        signedBy={signedBy}
-        onSignedByChange={setSignedBy}
-        onStartSign={() => setSigning(true)}
-        onCancelSign={() => setSigning(false)}
-        onSign={handleSign}
-        onEdit={() => setEditMode(true)}
-        onSave={handleSave}
-        onCancelEdit={() => {
-          if (!selected.id) { setView('list'); setSelected(null) }
-          else setEditMode(false)
-        }}
-        onBack={() => { setView('list'); setSelected(null); setEditMode(false); setSigning(false) }}
-        onDelete={handleDelete}
-      />
+      <>
+        {confirmDelete && (
+          <ConfirmModal
+            title={lbl('Werkbon verwijderen', 'Delete work order')}
+            message={lbl(
+              `Weet u zeker dat u werkbon "${confirmDelete.number || '—'}" van "${confirmDelete.client_name || '—'}" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`,
+              `Are you sure you want to delete work order "${confirmDelete.number || '—'}" for "${confirmDelete.client_name || '—'}"? This cannot be undone.`
+            )}
+            confirmLabel={lbl('Verwijderen', 'Delete')}
+            cancelLabel={lbl('Annuleren', 'Cancel')}
+            onConfirm={handleConfirmDelete}
+            onCancel={() => setConfirmDelete(null)}
+          />
+        )}
+
+        <WerkbonDetail
+          werkbon={selected}
+          editMode={editMode}
+          lang={lang}
+          projects={projects}
+          workers={workers}
+          saving={saving}
+          signing={signing}
+          signedBy={signedBy}
+          onSignedByChange={setSignedBy}
+          onStartSign={() => setSigning(true)}
+          onCancelSign={() => setSigning(false)}
+          onSign={handleSign}
+          onEdit={() => setEditMode(true)}
+          onSave={handleSave}
+          onCancelEdit={() => {
+            if (!selected.id) { setView('list'); setSelected(null) }
+            else setEditMode(false)
+          }}
+          onBack={() => { setView('list'); setSelected(null); setEditMode(false); setSigning(false) }}
+          onRequestDelete={() => requestDelete(selected)}
+        />
+      </>
     )
   }
 
   return (
     <div className={styles.page}>
+
+      {/* Confirm delete */}
+      {confirmDelete && (
+        <ConfirmModal
+          title={lbl('Werkbon verwijderen', 'Delete work order')}
+          message={lbl(
+            `Weet u zeker dat u werkbon "${confirmDelete.number || '—'}" van "${confirmDelete.client_name || '—'}" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`,
+            `Are you sure you want to delete work order "${confirmDelete.number || '—'}" for "${confirmDelete.client_name || '—'}"? This cannot be undone.`
+          )}
+          confirmLabel={lbl('Verwijderen', 'Delete')}
+          cancelLabel={lbl('Annuleren', 'Cancel')}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>{lbl('Werkbonnen', 'Work orders')}</h1>
@@ -247,7 +345,7 @@ export default function WerkbonPage() {
 }
 
 // ── Werkbon Detail / Edit View ─────────────────────────────────────────────────
-function WerkbonDetail({ werkbon, editMode, lang, projects, workers: allWorkers, saving, signing, signedBy, onSignedByChange, onStartSign, onCancelSign, onSign, onEdit, onSave, onCancelEdit, onBack, onDelete }) {
+function WerkbonDetail({ werkbon, editMode, lang, projects, workers: allWorkers, saving, signing, signedBy, onSignedByChange, onStartSign, onCancelSign, onSign, onEdit, onSave, onCancelEdit, onBack, onRequestDelete }) {
   const lbl = (nl, en) => lang === 'nl' ? nl : en
   const [data, setData] = useState({ ...werkbon })
 
@@ -298,7 +396,7 @@ function WerkbonDetail({ werkbon, editMode, lang, projects, workers: allWorkers,
           )}
           {editMode && <button className={styles.cancelBtn} onClick={onCancelEdit}>{lbl('Annuleren', 'Cancel')}</button>}
           <button className={styles.printBtn}><Printer size={14}/></button>
-          {data.id && <button className={`${styles.actionBtn2} ${styles.actionBtnRed}`} onClick={() => onDelete(data.id)}><Trash2 size={14}/></button>}
+          {data.id && <button className={`${styles.actionBtn2} ${styles.actionBtnRed}`} onClick={onRequestDelete}><Trash2 size={14}/></button>}
         </div>
       </div>
 
@@ -519,6 +617,98 @@ function WbField({ label, children }) {
     <div className={styles.wbField}>
       <label className={styles.wbFieldLbl}>{label}</label>
       {children}
+    </div>
+  )
+}
+
+/* ───────────────────────── SKELETON ───────────────────────── */
+
+function Shimmer({ w = '100%', h = 14, r = 6, style = {} }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%)',
+      backgroundSize: '400% 100%',
+      animation: 'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }} />
+  )
+}
+
+function SkeletonStatCard({ color }) {
+  return (
+    <div className={styles.statCard} style={{ borderLeftColor: color, pointerEvents: 'none', opacity: 0.75 }}>
+      <Shimmer w={40} h={22} style={{ marginBottom: 6 }} />
+      <Shimmer w={70} h={11} />
+    </div>
+  )
+}
+
+function SkeletonWerkbonRow({ index }) {
+  const widths = ['70%', '85%', '60%', '75%']
+  return (
+    <div className={styles.row} style={{ pointerEvents: 'none' }}>
+      <div className={styles.rowLeft}>
+        <Shimmer w={36} h={36} r={10} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <Shimmer w={80} h={13} />
+          <Shimmer w={110} h={11} />
+        </div>
+      </div>
+      <div className={styles.rowMid}>
+        <Shimmer w={widths[index % widths.length]} h={12} />
+      </div>
+      <div className={styles.rowRight}>
+        <Shimmer w={70} h={12} />
+        <Shimmer w={50} h={12} />
+        <Shimmer w={35} h={12} />
+        <Shimmer w={80} h={20} r={10} />
+      </div>
+    </div>
+  )
+}
+
+function WerkbonListSkeleton({ lbl }) {
+  return (
+    <div className={styles.page}>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>{lbl('Werkbonnen', 'Work orders')}</h1>
+          <p className={styles.pageSubtitle}>{lbl('Dagelijkse werkregistratie en klanthandtekening', 'Daily work records and client signatures')}</p>
+        </div>
+        <Shimmer w={170} h={38} r={8} />
+      </div>
+
+      {/* Stats */}
+      <div className={styles.statsRow}>
+        <SkeletonStatCard color="#1A3E6F" />
+        <SkeletonStatCard color="#757575" />
+        <SkeletonStatCard color="#1565C0" />
+        <SkeletonStatCard color="#2E7D32" />
+      </div>
+
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.searchWrap}>
+          <Shimmer w={14} h={14} r={4} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+          <Shimmer w="100%" h={36} r={8} />
+        </div>
+      </div>
+
+      {/* Rows */}
+      <div className={styles.listWrap}>
+        {Array.from({ length: 7 }).map((_, i) => (
+          <SkeletonWerkbonRow key={i} index={i} />
+        ))}
+      </div>
     </div>
   )
 }

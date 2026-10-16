@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import React from 'react'
 import { TrendingUp, TrendingDown, Euro, BarChart2, Download, Users, FolderKanban, Target } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { api } from '../../api/client'
@@ -180,14 +181,7 @@ export default function ReportsPage() {
     }))
   }, [projects])
 
-  if (loading) return (
-    <div className={styles.page}>
-      <div style={{ display:'flex', justifyContent:'center', padding:60 }}>
-        <div style={{ width:32, height:32, border:'3px solid #e0e0e0', borderTopColor:'#1A3E6F', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    </div>
-  )
+  if (loading) return <ReportsSkeleton lang={lang} lbl={lbl} />
 
   if (error) return (
     <div className={styles.page}>
@@ -367,9 +361,6 @@ export default function ReportsPage() {
   )
 }
 
-// Need React for Fragment in quarterly table
-import React from 'react'
-
 function KPICard({ icon: Icon, label, value, color, sub }) {
   const COLORS = { blue:'#1A3E6F', red:'#C8102E', green:'#2E7D32', orange:'#E65100', sky:'#1565C0', purple:'#7B1FA2' }
   const BG     = { blue:'#EEF5FF', red:'#FFF0F3', green:'#E8F5E9', orange:'#FFF3E0', sky:'#E3F2FD', purple:'#F3E5F5' }
@@ -382,6 +373,218 @@ function KPICard({ icon: Icon, label, value, color, sub }) {
         <div className={styles.kpiVal} style={{ color: c }}>{value}</div>
         <div className={styles.kpiLbl}>{label}</div>
         {sub && <div className={styles.kpiSub}>{sub}</div>}
+      </div>
+    </div>
+  )
+}
+
+/* ───────────────────────── SKELETON ───────────────────────── */
+
+function Shimmer({ w = '100%', h = 14, r = 6, style = {} }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%)',
+      backgroundSize: '400% 100%',
+      animation: 'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }} />
+  )
+}
+
+function SkeletonKPICard({ color }) {
+  const COLORS = { blue:'#1A3E6F', red:'#C8102E', green:'#2E7D32', orange:'#E65100', sky:'#1565C0', purple:'#7B1FA2' }
+  const BG     = { blue:'#EEF5FF', red:'#FFF0F3', green:'#E8F5E9', orange:'#FFF3E0', sky:'#E3F2FD', purple:'#F3E5F5' }
+  const c  = COLORS[color] || COLORS.blue
+  const bg = BG[color]     || BG.blue
+  return (
+    <div className={styles.kpiCard} style={{ borderTopColor: c, pointerEvents: 'none', opacity: 0.75 }}>
+      <div className={styles.kpiIcon} style={{ background: bg }}>
+        <Shimmer w={16} h={16} r={4} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <Shimmer w={90} h={20} style={{ marginBottom: 6 }} />
+        <Shimmer w={110} h={11} style={{ marginBottom: 4 }} />
+        <Shimmer w={70} h={10} />
+      </div>
+    </div>
+  )
+}
+
+function SkeletonBarChart() {
+  const months = 12
+  // Heights pseudo-aléatoires mais stables pour un rendu naturel
+  const heights = [45, 62, 38, 71, 55, 80, 48, 66, 52, 74, 58, 68]
+  return (
+    <div className={styles.chartWrap}>
+      <div className={styles.chart}>
+        {Array.from({ length: months }).map((_, i) => (
+          <div key={i} className={styles.chartCol}>
+            <div className={styles.chartBars}>
+              <div className={styles.barGroup}>
+                <Shimmer w="100%" h={`${heights[i]}%`} r={4} style={{ position: 'absolute', bottom: 0, left: 0 }} />
+                <Shimmer w="100%" h={`${Math.max(15, heights[i] - 20)}%`} r={4} style={{ position: 'absolute', bottom: 0, right: 0 }} />
+              </div>
+            </div>
+            <Shimmer w={24} h={11} />
+          </div>
+        ))}
+      </div>
+      <div className={styles.chartLegend}>
+        <span className={styles.legendItem}>
+          <Shimmer w={10} h={10} r={5} />
+          <Shimmer w={55} h={11} />
+        </span>
+        <span className={styles.legendItem}>
+          <Shimmer w={10} h={10} r={5} />
+          <Shimmer w={65} h={11} />
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function SkeletonBudgetRow({ index }) {
+  const widths = ['60%', '75%', '55%', '70%']
+  return (
+    <div className={styles.projectBudgetRow} style={{ pointerEvents: 'none' }}>
+      <div className={styles.pbInfo}>
+        <Shimmer w={widths[index % widths.length]} h={13} style={{ marginBottom: 6 }} />
+        <Shimmer w="50%" h={11} />
+      </div>
+      <div className={styles.pbBars}>
+        <div className={styles.pbBarRow}>
+          <Shimmer w={50} h={11} />
+          <Shimmer w="100%" h={8} r={4} />
+          <Shimmer w={30} h={11} />
+        </div>
+        <div className={styles.pbNumbers} style={{ marginTop: 6 }}>
+          <Shimmer w={100} h={10} />
+          <Shimmer w={70} h={10} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SkeletonClientRow({ index }) {
+  const widths = ['65%', '80%', '55%', '70%']
+  return (
+    <div className={styles.clientRow} style={{ pointerEvents: 'none' }}>
+      <Shimmer w={30} h={14} />
+      <div className={styles.clientInfo} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <Shimmer w={widths[index % widths.length]} h={12} />
+        <Shimmer w={70} h={10} />
+      </div>
+      <div className={styles.clientRight}>
+        <Shimmer w={70} h={12} style={{ marginBottom: 4 }} />
+        <Shimmer w="100%" h={5} r={3} />
+      </div>
+    </div>
+  )
+}
+
+function SkeletonStatusCard() {
+  return (
+    <div className={styles.statusCard} style={{ borderTopColor: '#e0e0e0', pointerEvents: 'none' }}>
+      <Shimmer w={40} h={26} style={{ marginBottom: 8 }} />
+      <Shimmer w={90} h={12} style={{ marginBottom: 12 }} />
+      <Shimmer w="100%" h={6} r={3} style={{ marginBottom: 6 }} />
+      <Shimmer w={35} h={11} />
+    </div>
+  )
+}
+
+function ReportsSkeleton({ lang, lbl }) {
+  const statuses = ['planning','in_progress','on_hold','completed','cancelled']
+
+  return (
+    <div className={styles.page}>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>{lbl('Rapporten & Analytics','Reports & Analytics')}</h1>
+          <p className={styles.pageSubtitle}>{lbl('Financieel overzicht en projectanalyse','Financial overview and project analysis')}</p>
+        </div>
+        <div className={styles.headerBtns}>
+          <Shimmer w={150} h={38} r={8} />
+          <Shimmer w={150} h={38} r={8} />
+        </div>
+      </div>
+
+      {/* KPI grid */}
+      <div className={styles.kpiGrid}>
+        <SkeletonKPICard color="blue" />
+        <SkeletonKPICard color="red" />
+        <SkeletonKPICard color="green" />
+        <SkeletonKPICard color="orange" />
+        <SkeletonKPICard color="sky" />
+        <SkeletonKPICard color="purple" />
+      </div>
+
+      {/* Revenue vs expenses chart */}
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <Shimmer w={280} h={18} />
+          <div className={styles.quarterBtns}>
+            {['year','q1','q2','q3','q4'].map(q => (
+              <Shimmer key={q} w={45} h={32} r={6} />
+            ))}
+          </div>
+        </div>
+        <div className={styles.card}>
+          <SkeletonBarChart />
+          <div className={styles.chartSummary}>
+            {[0,1,2].map(i => (
+              <div key={i} className={styles.summaryItem}>
+                <Shimmer w={80} h={11} style={{ marginBottom: 6 }} />
+                <Shimmer w={100} h={16} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Two columns: budget per project + top clients */}
+      <div className={styles.twoCol}>
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <Shimmer w={180} h={18} />
+          </div>
+          <div className={styles.card}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonBudgetRow key={i} index={i} />
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <Shimmer w={140} h={18} />
+          </div>
+          <div className={styles.card}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonClientRow key={i} index={i} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Project status overview */}
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <Shimmer w={250} h={18} />
+        </div>
+        <div className={styles.statusGrid}>
+          {statuses.map((_, i) => <SkeletonStatusCard key={i} />)}
+        </div>
       </div>
     </div>
   )

@@ -220,52 +220,52 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className={styles.statsRow}>
-        <div className={styles.stat}><span className={styles.statNum}>{stats.total}</span><span className={styles.statLbl}>{lbl('Totaal', 'Total')}</span></div>
-        <div className={styles.stat}><span className={styles.statNum} style={{ color: '#1565C0' }}>{stats.todo}</span><span className={styles.statLbl}>{lbl('Te doen', 'To do')}</span></div>
-        <div className={styles.stat}><span className={styles.statNum} style={{ color: '#E65100' }}>{stats.inProgress}</span><span className={styles.statLbl}>{lbl('Bezig', 'In progress')}</span></div>
-        <div className={styles.stat}><span className={styles.statNum} style={{ color: '#2E7D32' }}>{stats.done}</span><span className={styles.statLbl}>{lbl('Afgerond', 'Done')}</span></div>
-        {stats.overdue > 0 && (
-          <div className={styles.stat}>
-            <span className={styles.statNum} style={{ color: '#C8102E' }}>{stats.overdue}</span>
-            <span className={styles.statLbl}>{lbl('Verlopen', 'Overdue')}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Toolbar */}
-      <div className={styles.toolbar}>
-        <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
-          <input
-            className={styles.searchInput}
-            placeholder={lbl('Taken zoeken…', 'Search tasks…')}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-        <div className={styles.filters}>
-          <Filter size={14} style={{ color: 'var(--grey-300)' }} />
-          <select className={styles.filterSelect} value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
-            <option value="">{lbl('Alle prioriteiten', 'All priorities')}</option>
-            {Object.entries(PRIORITY_STYLE).map(([k, v]) => (
-              <option key={k} value={k}>{lang === 'nl' ? v.label_nl : v.label_en}</option>
-            ))}
-          </select>
-          <select className={styles.filterSelect} value={filterProject} onChange={e => setFilterProject(e.target.value)}>
-            <option value="">{lbl('Alle projecten', 'All projects')}</option>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-      </div>
-
       {loading ? (
-        <p style={{ padding: 24, textAlign: 'center', color: '#666' }}>Laden…</p>
+        <TasksSkeleton lang={lang} lbl={lbl} view={view} />
       ) : error ? (
         <p style={{ padding: 24, textAlign: 'center', color: '#C8102E' }}>Fout: {error}</p>
       ) : (
         <>
+          {/* Stats */}
+          <div className={styles.statsRow}>
+            <div className={styles.stat}><span className={styles.statNum}>{stats.total}</span><span className={styles.statLbl}>{lbl('Totaal', 'Total')}</span></div>
+            <div className={styles.stat}><span className={styles.statNum} style={{ color: '#1565C0' }}>{stats.todo}</span><span className={styles.statLbl}>{lbl('Te doen', 'To do')}</span></div>
+            <div className={styles.stat}><span className={styles.statNum} style={{ color: '#E65100' }}>{stats.inProgress}</span><span className={styles.statLbl}>{lbl('Bezig', 'In progress')}</span></div>
+            <div className={styles.stat}><span className={styles.statNum} style={{ color: '#2E7D32' }}>{stats.done}</span><span className={styles.statLbl}>{lbl('Afgerond', 'Done')}</span></div>
+            {stats.overdue > 0 && (
+              <div className={styles.stat}>
+                <span className={styles.statNum} style={{ color: '#C8102E' }}>{stats.overdue}</span>
+                <span className={styles.statLbl}>{lbl('Verlopen', 'Overdue')}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Toolbar */}
+          <div className={styles.toolbar}>
+            <div className={styles.searchWrap}>
+              <Search size={15} className={styles.searchIcon} />
+              <input
+                className={styles.searchInput}
+                placeholder={lbl('Taken zoeken…', 'Search tasks…')}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <div className={styles.filters}>
+              <Filter size={14} style={{ color: 'var(--grey-300)' }} />
+              <select className={styles.filterSelect} value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
+                <option value="">{lbl('Alle prioriteiten', 'All priorities')}</option>
+                {Object.entries(PRIORITY_STYLE).map(([k, v]) => (
+                  <option key={k} value={k}>{lang === 'nl' ? v.label_nl : v.label_en}</option>
+                ))}
+              </select>
+              <select className={styles.filterSelect} value={filterProject} onChange={e => setFilterProject(e.target.value)}>
+                <option value="">{lbl('Alle projecten', 'All projects')}</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          </div>
+
           {/* KANBAN VIEW */}
           {view === 'kanban' && (
             <div className={styles.kanban}>
@@ -426,5 +426,159 @@ function TaskCard({ task, lang, onToggle, onEdit, onDelete, onMove, allCols, col
         ))}
       </div>
     </div>
+  )
+}
+
+/* ───────────────────────── SKELETON ───────────────────────── */
+
+function Shimmer({ w = '100%', h = 14, r = 6, style = {} }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%)',
+      backgroundSize: '400% 100%',
+      animation: 'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }} />
+  )
+}
+
+function SkeletonTaskCard({ index }) {
+  const titleWidths = ['70%', '85%', '60%', '75%', '65%']
+  const descWidths  = ['90%', '80%', '95%', '70%']
+
+  return (
+    <div className={styles.card} style={{ pointerEvents: 'none' }}>
+      <div className={styles.cardTop}>
+        <Shimmer w={65} h={18} r={9} />
+        <div className={styles.cardActions}>
+          <Shimmer w={24} h={24} r={5} />
+          <Shimmer w={24} h={24} r={5} />
+        </div>
+      </div>
+
+      <div className={styles.cardTitleRow}>
+        <Shimmer w={16} h={16} r={4} />
+        <Shimmer w={titleWidths[index % titleWidths.length]} h={13} />
+      </div>
+
+      <div style={{ marginTop: 8, marginBottom: 10 }}>
+        <Shimmer w={descWidths[index % descWidths.length]} h={10} style={{ marginBottom: 5 }} />
+        <Shimmer w={`${55 + (index % 3) * 10}%`} h={10} />
+      </div>
+
+      <div className={styles.cardMeta} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+        <Shimmer w={80} h={10} />
+        <Shimmer w={60} h={10} />
+        <Shimmer w={70} h={10} />
+      </div>
+
+      <div className={styles.moveBtns} style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+        <Shimmer w={75} h={22} r={6} />
+        <Shimmer w={75} h={22} r={6} />
+      </div>
+    </div>
+  )
+}
+
+function SkeletonKanbanColumn({ col, count, lang, lbl }) {
+  return (
+    <div className={styles.kanbanCol}>
+      <div className={styles.kanbanHeader}>
+        <span className={styles.kanbanDot} style={{ background: COL_COLORS[col] }} />
+        <span className={styles.kanbanTitle}>{lang === 'nl' ? COL_LABELS[col].nl : COL_LABELS[col].en}</span>
+        <Shimmer w={22} h={18} r={9} />
+      </div>
+      <div className={styles.kanbanCards}>
+        {Array.from({ length: count }).map((_, i) => (
+          <SkeletonTaskCard key={i} index={i} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SkeletonListRow({ index }) {
+  const widths = ['55%', '70%', '60%', '65%', '80%']
+  return (
+    <div className={styles.listRow} style={{ pointerEvents: 'none' }}>
+      <Shimmer w={18} h={18} r={4} />
+      <div className={styles.listMain} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Shimmer w={widths[index % widths.length]} h={13} />
+        <div style={{ display: 'flex', gap: 12 }}>
+          <Shimmer w={80} h={10} />
+          <Shimmer w={65} h={10} />
+          <Shimmer w={70} h={10} />
+        </div>
+      </div>
+      <Shimmer w={65} h={20} r={10} />
+      <div className={styles.listActions} style={{ display: 'flex', gap: 4 }}>
+        <Shimmer w={26} h={26} r={5} />
+        <Shimmer w={26} h={26} r={5} />
+      </div>
+    </div>
+  )
+}
+
+function TasksSkeleton({ lang, lbl, view }) {
+  // Nombre de cartes fantômes par colonne (varié pour un rendu naturel)
+  const kanbanCounts = { todo: 3, in_progress: 2, done: 2 }
+
+  return (
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      {/* Stats row */}
+      <div className={styles.statsRow}>
+        {[0, 1, 2, 3, 4].map(i => (
+          <div key={i} className={styles.stat}>
+            <Shimmer w={32} h={22} style={{ marginBottom: 6 }} />
+            <Shimmer w={60} h={11} />
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.searchWrap}>
+          <Shimmer w={15} h={15} r={4} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+          <Shimmer w="100%" h={36} r={8} />
+        </div>
+        <div className={styles.filters}>
+          <Shimmer w={14} h={14} r={4} />
+          <Shimmer w={140} h={36} r={8} />
+          <Shimmer w={140} h={36} r={8} />
+        </div>
+      </div>
+
+      {/* Kanban view */}
+      {view === 'kanban' && (
+        <div className={styles.kanban}>
+          {STATUS_COLS.map(col => (
+            <SkeletonKanbanColumn
+              key={col}
+              col={col}
+              count={kanbanCounts[col]}
+              lang={lang}
+              lbl={lbl}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* List view */}
+      {view === 'list' && (
+        <div className={styles.listWrap}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <SkeletonListRow key={i} index={i} />
+          ))}
+        </div>
+      )}
+    </>
   )
 }

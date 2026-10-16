@@ -171,138 +171,140 @@ export default function ClientsPage() {
         </button>
       </div>
 
-      <div className={styles.statsRow}>
-        <StatCard label={c.total}    value={stats.total}    accent="blue" />
-        <StatCard label={c.active}   value={stats.active}   accent="green" />
-        <StatCard label={c.inactive} value={stats.inactive} accent="orange" />
-        <StatCard label="Prospect"   value={stats.prospect} accent="sky" />
-      </div>
-
-      <div className={styles.toolbar}>
-        <div className={styles.searchWrap}>
-          <Search size={15} className={styles.searchIcon} />
-          <input
-            className={styles.searchInput}
-            placeholder={c.search}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-
-        <div className={styles.filters}>
-          <Filter size={14} style={{ color: 'var(--grey-400, var(--grey-300))' }} />
-          <select className={styles.filterSelect} value={filterType} onChange={e => setFilterType(e.target.value)}>
-            <option value="">{c.filterType}</option>
-            {Object.entries(t.clients.types).map(([k,v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-
-          <select className={styles.filterSelect} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-            <option value="">Alle statussen</option>
-            {Object.entries(t.clients.statuses).map(([k,v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-
-          <select className={styles.filterSelect} value={filterCity} onChange={e => setFilterCity(e.target.value)}>
-            <option value="">{c.filterCity}</option>
-            {dutchCities.map(ct => <option key={ct} value={ct}>{ct}</option>)}
-          </select>
-        </div>
-      </div>
-
-      <div className={styles.tableWrap}>
-        {loading ? (
-          <div className={styles.empty}>
-            <p className={styles.emptyTitle}>Laden…</p>
+      {loading ? (
+        <ClientsSkeleton c={c} t={t} />
+      ) : (
+        <>
+          <div className={styles.statsRow}>
+            <StatCard label={c.total}    value={stats.total}    accent="blue" />
+            <StatCard label={c.active}   value={stats.active}   accent="green" />
+            <StatCard label={c.inactive} value={stats.inactive} accent="orange" />
+            <StatCard label="Prospect"   value={stats.prospect} accent="sky" />
           </div>
-        ) : error ? (
-          <div className={styles.empty}>
-            <p className={styles.emptyTitle}>Fout: {error}</p>
-            <button className={styles.addBtn} onClick={load} style={{ marginTop: 12 }}>
-              Opnieuw proberen
-            </button>
+
+          <div className={styles.toolbar}>
+            <div className={styles.searchWrap}>
+              <Search size={15} className={styles.searchIcon} />
+              <input
+                className={styles.searchInput}
+                placeholder={c.search}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+
+            <div className={styles.filters}>
+              <Filter size={14} style={{ color: 'var(--grey-400, var(--grey-300))' }} />
+              <select className={styles.filterSelect} value={filterType} onChange={e => setFilterType(e.target.value)}>
+                <option value="">{c.filterType}</option>
+                {Object.entries(t.clients.types).map(([k,v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+
+              <select className={styles.filterSelect} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                <option value="">Alle statussen</option>
+                {Object.entries(t.clients.statuses).map(([k,v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+
+              <select className={styles.filterSelect} value={filterCity} onChange={e => setFilterCity(e.target.value)}>
+                <option value="">{c.filterCity}</option>
+                {dutchCities.map(ct => <option key={ct} value={ct}>{ct}</option>)}
+              </select>
+            </div>
           </div>
-        ) : filtered.length === 0 ? (
-          <div className={styles.empty}>
-            <p className={styles.emptyTitle}>{c.noResults}</p>
-            <p className={styles.emptyHint}>{c.noResultsHint}</p>
-          </div>
-        ) : (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Naam</th>
-                <th>Type</th>
-                <th>Categorie</th>
-                <th><Phone size={12} style={{verticalAlign:'middle',marginRight:4}} />Contact</th>
-                <th><MapPin size={12} style={{verticalAlign:'middle',marginRight:4}} />Stad</th>
-                <th>Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(cl => {
-                const Icon = TYPE_ICONS[cl.type] || User
-                const statusStyle = STATUS_COLORS[cl.status] || {}
-                return (
-                  <tr key={cl.id} className={styles.row}>
-                    <td>
-                      <div className={styles.nameCell}>
-                        <div className={styles.avatar}>
-                          <Icon size={14} />
-                        </div>
-                        <div>
-                          <div className={styles.clientName}>{displayName(cl)}</div>
-                          <div className={styles.clientEmail}>
-                            <Mail size={10} style={{marginRight:3}} />
-                            {cl.email}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={styles.typeTag}>
-                        {t.clients.types[cl.type]}
-                      </span>
-                    </td>
-                    <td>{cl.subtype ? t.clients.subtypes[cl.subtype] || cl.subtype : '—'}</td>
-                    <td className={styles.phoneCell}>{cl.phone1}</td>
-                    <td>{cl.city || '—'}</td>
-                    <td>
-                      <span
-                        className={styles.statusBadge}
-                        style={{ background: statusStyle.bg, color: statusStyle.color }}
-                      >
-                        {t.clients.statuses[cl.status]}
-                      </span>
-                    </td>
-                    <td>
-                      <div className={styles.actions}>
-                        <button className={styles.actionBtn} onClick={() => openEdit(cl)} title={c.edit}>
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          className={`${styles.actionBtn} ${styles.actionBtnRed}`}
-                          onClick={() => setDeleteId(cl.id)}
-                          title={c.delete}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
+
+          <div className={styles.tableWrap}>
+            {error ? (
+              <div className={styles.empty}>
+                <p className={styles.emptyTitle}>Fout: {error}</p>
+                <button className={styles.addBtn} onClick={load} style={{ marginTop: 12 }}>
+                  Opnieuw proberen
+                </button>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className={styles.empty}>
+                <p className={styles.emptyTitle}>{c.noResults}</p>
+                <p className={styles.emptyHint}>{c.noResultsHint}</p>
+              </div>
+            ) : (
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Naam</th>
+                    <th>Type</th>
+                    <th>Categorie</th>
+                    <th><Phone size={12} style={{verticalAlign:'middle',marginRight:4}} />Contact</th>
+                    <th><MapPin size={12} style={{verticalAlign:'middle',marginRight:4}} />Stad</th>
+                    <th>Status</th>
+                    <th />
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {filtered.map(cl => {
+                    const Icon = TYPE_ICONS[cl.type] || User
+                    const statusStyle = STATUS_COLORS[cl.status] || {}
+                    return (
+                      <tr key={cl.id} className={styles.row}>
+                        <td>
+                          <div className={styles.nameCell}>
+                            <div className={styles.avatar}>
+                              <Icon size={14} />
+                            </div>
+                            <div>
+                              <div className={styles.clientName}>{displayName(cl)}</div>
+                              <div className={styles.clientEmail}>
+                                <Mail size={10} style={{marginRight:3}} />
+                                {cl.email}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={styles.typeTag}>
+                            {t.clients.types[cl.type]}
+                          </span>
+                        </td>
+                        <td>{cl.subtype ? t.clients.subtypes[cl.subtype] || cl.subtype : '—'}</td>
+                        <td className={styles.phoneCell}>{cl.phone1}</td>
+                        <td>{cl.city || '—'}</td>
+                        <td>
+                          <span
+                            className={styles.statusBadge}
+                            style={{ background: statusStyle.bg, color: statusStyle.color }}
+                          >
+                            {t.clients.statuses[cl.status]}
+                          </span>
+                        </td>
+                        <td>
+                          <div className={styles.actions}>
+                            <button className={styles.actionBtn} onClick={() => openEdit(cl)} title={c.edit}>
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              className={`${styles.actionBtn} ${styles.actionBtnRed}`}
+                              onClick={() => setDeleteId(cl.id)}
+                              title={c.delete}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
 
-      <div className={styles.tableFooter}>
-        {filtered.length} / {clients.length} klanten
-      </div>
+          <div className={styles.tableFooter}>
+            {filtered.length} / {clients.length} klanten
+          </div>
+        </>
+      )}
 
       {formOpen && (
         <ClientForm
@@ -339,5 +341,113 @@ function StatCard({ label, value, accent }) {
       <span className={styles.statValue}>{value}</span>
       <span className={styles.statLabel}>{label}</span>
     </div>
+  )
+}
+
+/* ───────────────────────── SKELETON ───────────────────────── */
+
+function Shimmer({ w = '100%', h = 14, r = 6, style = {} }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%)',
+      backgroundSize: '400% 100%',
+      animation: 'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }} />
+  )
+}
+
+function SkeletonStatCard({ accent }) {
+  return (
+    <div className={`${styles.statCard} ${styles['accent_' + accent]}`} style={{ opacity: 0.7 }}>
+      <Shimmer w={40} h={22} style={{ marginBottom: 6 }} />
+      <Shimmer w={70} h={11} />
+    </div>
+  )
+}
+
+function ClientsSkeleton({ c, t }) {
+  const rows = 8
+
+  return (
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      {/* Stats row */}
+      <div className={styles.statsRow}>
+        <SkeletonStatCard accent="blue" />
+        <SkeletonStatCard accent="green" />
+        <SkeletonStatCard accent="orange" />
+        <SkeletonStatCard accent="sky" />
+      </div>
+
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.searchWrap}>
+          <Shimmer w={15} h={15} r={4} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+          <Shimmer w="100%" h={38} r={8} />
+        </div>
+        <div className={styles.filters}>
+          <Shimmer w={14} h={14} r={4} />
+          <Shimmer w={120} h={38} r={8} />
+          <Shimmer w={120} h={38} r={8} />
+          <Shimmer w={120} h={38} r={8} />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Naam</th>
+              <th>Type</th>
+              <th>Categorie</th>
+              <th><Phone size={12} style={{verticalAlign:'middle',marginRight:4}} />Contact</th>
+              <th><MapPin size={12} style={{verticalAlign:'middle',marginRight:4}} />Stad</th>
+              <th>Status</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: rows }).map((_, i) => (
+              <tr key={i} className={styles.row}>
+                <td>
+                  <div className={styles.nameCell}>
+                    <Shimmer w={32} h={32} r={16} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <Shimmer w={110 + (i % 3) * 20} h={12} />
+                      <Shimmer w={140 + (i % 2) * 20} h={10} />
+                    </div>
+                  </div>
+                </td>
+                <td><Shimmer w={70} h={18} r={10} /></td>
+                <td><Shimmer w={80} h={12} /></td>
+                <td><Shimmer w={90} h={12} /></td>
+                <td><Shimmer w={70} h={12} /></td>
+                <td><Shimmer w={64} h={20} r={10} /></td>
+                <td>
+                  <div className={styles.actions}>
+                    <Shimmer w={28} h={28} r={6} />
+                    <Shimmer w={28} h={28} r={6} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer */}
+      <div className={styles.tableFooter}>
+        <Shimmer w={120} h={12} />
+      </div>
+    </>
   )
 }

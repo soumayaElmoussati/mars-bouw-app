@@ -69,13 +69,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'60vh', flexDirection:'column', gap:12 }}>
-      <div style={{ width:36, height:36, border:'3px solid #e0e0e0', borderTopColor:'#1A3E6F', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      <p style={{ color:'var(--grey-500)', fontSize:14 }}>{lbl('Dashboard laden…','Loading dashboard…')}</p>
-    </div>
-  )
+  if (loading) return <DashboardSkeleton lbl={lbl} />
 
   if (error) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'60vh', flexDirection:'column', gap:12 }}>
@@ -111,7 +105,7 @@ export default function DashboardPage() {
       {/* Hero greeting */}
       <div className={styles.hero}>
         <div className={styles.heroLeft}>
-          <p className={styles.greeting}>{greeting}, Jan 👋</p>
+          <p className={styles.greeting}>{greeting}</p>
           <p className={styles.dateStr}>{dateStr}</p>
         </div>
         <div className={styles.heroRight}>
@@ -370,6 +364,137 @@ function KPICard({ icon: Icon, label, value, color, sub, onClick }) {
         <span className={styles.kpiValue} style={{ color: c.text }}>{value}</span>
         <span className={styles.kpiLabel}>{label}</span>
         {sub && <span className={styles.kpiSub}>{sub}</span>}
+      </div>
+    </div>
+  )
+}
+
+/* ───────────────────────── SKELETON ───────────────────────── */
+
+function Shimmer({ w = '100%', h = 14, r = 6, style = {} }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%)',
+      backgroundSize: '400% 100%',
+      animation: 'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }} />
+  )
+}
+
+function SkeletonKPI() {
+  return (
+    <div className={styles.kpiCard} style={{ borderTopColor: '#e0e0e0', cursor: 'default', pointerEvents: 'none' }}>
+      <div className={styles.kpiIconWrap} style={{ background: '#f0f0f0' }}>
+        <Shimmer w={18} h={18} r={4} />
+      </div>
+      <div className={styles.kpiInfo}>
+        <Shimmer w={60} h={20} />
+        <Shimmer w={90} h={11} style={{ marginTop: 6 }} />
+        <Shimmer w={50} h={10} style={{ marginTop: 4 }} />
+      </div>
+    </div>
+  )
+}
+
+function SkeletonPanelRows({ rows = 4, variant = 'default' }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #f3f3f3' }}>
+          {variant === 'task' && <Shimmer w={52} h={18} r={4} />}
+          {variant === 'event' && <Shimmer w={4} h={32} r={2} />}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Shimmer w={`${55 + (i % 3) * 10}%`} h={12} />
+            <Shimmer w={`${30 + (i % 2) * 15}%`} h={10} />
+          </div>
+          {variant === 'stock' && <Shimmer w={50} h={12} />}
+        </div>
+      ))}
+    </>
+  )
+}
+
+function DashboardSkeleton({ lbl }) {
+  return (
+    <div className={styles.page}>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      {/* Hero */}
+      <div className={styles.hero}>
+        <div className={styles.heroLeft}>
+          <Shimmer w={160} h={22} style={{ marginBottom: 8 }} />
+          <Shimmer w={220} h={13} />
+        </div>
+        <div className={styles.heroRight}>
+          <Shimmer w={120} h={28} r={20} />
+          <Shimmer w={110} h={28} r={20} />
+          <Shimmer w={130} h={28} r={20} />
+        </div>
+      </div>
+
+      {/* KPI Row */}
+      <div className={styles.kpiRow}>
+        {Array.from({ length: 6 }).map((_, i) => <SkeletonKPI key={i} />)}
+      </div>
+
+      {/* Budget card */}
+      <div className={styles.budgetCard}>
+        <div className={styles.budgetHeader}>
+          <div>
+            <Shimmer w={200} h={16} style={{ marginBottom: 6 }} />
+            <Shimmer w={130} h={11} />
+          </div>
+          <Shimmer w={110} h={14} r={20} />
+        </div>
+        <div className={styles.budgetNumbers}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className={styles.budgetNum}>
+              <Shimmer w={80} h={11} style={{ marginBottom: 8 }} />
+              <Shimmer w={90} h={20} />
+            </div>
+          ))}
+        </div>
+        <div className={styles.masterBar} style={{ background: '#f0f0f0' }}>
+          <Shimmer w="45%" h="100%" r={0} />
+        </div>
+      </div>
+
+      {/* Finance row */}
+      <div className={styles.financeRow}>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className={styles.finCard} style={{ borderLeftColor: '#e0e0e0' }}>
+            <Shimmer w={18} h={18} r={4} />
+            <div style={{ flex: 1 }}>
+              <Shimmer w={120} h={11} style={{ marginBottom: 8 }} />
+              <Shimmer w={90} h={18} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 4-panel grid */}
+      <div className={styles.grid}>
+        {['projects', 'tasks', 'stock', 'events'].map((type) => (
+          <div className={styles.panel} key={type}>
+            <div className={styles.panelHeader}>
+              <Shimmer w={140} h={14} />
+              <Shimmer w={55} h={12} r={20} />
+            </div>
+            <div className={styles.panelBody}>
+              <SkeletonPanelRows
+                rows={4}
+                variant={type === 'tasks' ? 'task' : type === 'stock' ? 'stock' : type === 'events' ? 'event' : 'default'}
+              />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

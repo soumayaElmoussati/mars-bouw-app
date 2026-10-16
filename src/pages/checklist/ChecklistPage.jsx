@@ -90,14 +90,7 @@ export default function ChecklistPage() {
     return { done, total: allItems.length, pct: allItems.length ? done / allItems.length * 100 : 0, criticalMissed }
   }
 
-  if (loading) return (
-    <div className={styles.page}>
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-        <div style={{ width: 32, height: 32, border: '3px solid #e0e0e0', borderTopColor: '#1A3E6F', borderRadius: '50%', animation: 'spin .7s linear infinite' }}/>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    </div>
-  )
+  if (loading) return <ChecklistListSkeleton lang={lang} lbl={lbl} />
 
   // ── Detail view ─────────────────────────────────────────────────────────────
   if (view === 'detail' && selected) {
@@ -343,6 +336,102 @@ function NewChecklistModal({ templateId, projects, lang, onSave, onClose }) {
             {lbl('Checklist starten', 'Start checklist')}
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+/* ───────────────────────── SKELETON ───────────────────────── */
+
+function Shimmer({ w = '100%', h = 14, r = 6, style = {} }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%)',
+      backgroundSize: '400% 100%',
+      animation: 'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }} />
+  )
+}
+
+function SkeletonInstanceRow({ index }) {
+  const widths = ['60%', '75%', '55%', '70%']
+  return (
+    <div className={styles.instRow} style={{ pointerEvents: 'none' }}>
+      <Shimmer w={32} h={32} r={16} />
+      <div className={styles.instInfo} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Shimmer w={widths[index % widths.length]} h={13} />
+        <Shimmer w="45%" h={11} />
+      </div>
+      <div className={styles.instProg} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Shimmer w={110} h={8} r={4} />
+        <Shimmer w={45} h={12} />
+      </div>
+      <Shimmer w={65} h={20} r={10} />
+      <Shimmer w={80} h={12} />
+    </div>
+  )
+}
+
+function ChecklistListSkeleton({ lang, lbl }) {
+  // Nombre de cartes template fantômes = nombre réel de templates
+  const tplCount = checklistTemplates?.length || 4
+
+  return (
+    <div className={styles.page}>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>{lbl('Kwaliteitschecklists', 'Quality checklists')}</h1>
+          <p className={styles.pageSubtitle}>{lbl('Prédéfinie checklists per type werkzaamheid', 'Predefined checklists per work type')}</p>
+        </div>
+        <Shimmer w={170} h={38} r={8} />
+      </div>
+
+      {/* Stats */}
+      <div className={styles.statsRow}>
+        <div className={styles.statCard} style={{ borderLeftColor: '#e0e0e0' }}>
+          <Shimmer w={40} h={22} style={{ marginBottom: 6 }} />
+          <Shimmer w={70} h={11} />
+        </div>
+        <div className={styles.statCard} style={{ borderLeftColor: '#E65100' }}>
+          <Shimmer w={40} h={22} style={{ marginBottom: 6 }} />
+          <Shimmer w={70} h={11} />
+        </div>
+        <div className={styles.statCard} style={{ borderLeftColor: '#2E7D32' }}>
+          <Shimmer w={40} h={22} style={{ marginBottom: 6 }} />
+          <Shimmer w={70} h={11} />
+        </div>
+      </div>
+
+      {/* Templates */}
+      <div className={styles.templatesRow}>
+        {Array.from({ length: tplCount }).map((_, i) => (
+          <div key={i} className={styles.tplCard} style={{ borderTopColor: '#e0e0e0', pointerEvents: 'none' }}>
+            <Shimmer w={32} h={32} r={8} />
+            <Shimmer w={`${60 + (i % 3) * 10}%`} h={13} style={{ marginTop: 8, marginBottom: 6 }} />
+            <Shimmer w={70} h={11} style={{ marginBottom: 12 }} />
+            <Shimmer w={90} h={30} r={8} />
+          </div>
+        ))}
+      </div>
+
+      {/* Instances */}
+      <div style={{ marginTop: 24, marginBottom: 12 }}>
+        <Shimmer w={250} h={16} />
+      </div>
+      <div className={styles.instancesList}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <SkeletonInstanceRow key={i} index={i} />
+        ))}
       </div>
     </div>
   )

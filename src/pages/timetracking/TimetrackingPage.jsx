@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Plus, Search, Filter, Clock, Euro, Users,
-  CheckCircle, AlertTriangle, BarChart2, ChevronLeft, ChevronRight
+  CheckCircle, AlertTriangle, BarChart2, ChevronLeft, ChevronRight,
+  AlertCircle
 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { api } from '../../api/client'
@@ -79,6 +80,59 @@ function toApiWorker(data) {
   }
 }
 
+/* ── Confirm Modal (inline) ──────────────────────────────────────────────── */
+function ConfirmModal({ title, message, confirmLabel, cancelLabel, onConfirm, onCancel }) {
+  return (
+    <div
+      onClick={e => e.target === e.currentTarget && onCancel()}
+      style={{
+        position:'fixed', inset:0, background:'rgba(0,0,0,0.45)',
+        zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center',
+        animation:'cmFadeIn .15s ease',
+      }}>
+      <style>{`
+        @keyframes cmFadeIn  { from{opacity:0} to{opacity:1} }
+        @keyframes cmSlideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+      `}</style>
+      <div style={{
+        background:'white', borderRadius:14, padding:'28px 28px 22px',
+        width:400, maxWidth:'90vw',
+        boxShadow:'0 20px 60px rgba(0,0,0,0.2)',
+        animation:'cmSlideUp .2s ease',
+      }}>
+        <div style={{
+          width:46, height:46, borderRadius:'50%',
+          background:'#FFF0F3', display:'flex', alignItems:'center',
+          justifyContent:'center', marginBottom:14,
+        }}>
+          <AlertCircle size={22} color="#C8102E"/>
+        </div>
+        <h3 style={{fontSize:15.5, fontWeight:700, color:'#1A1A2E', marginBottom:8}}>{title}</h3>
+        <p style={{fontSize:13.5, color:'#6B7280', lineHeight:1.6, marginBottom:22}}>{message}</p>
+        <div style={{display:'flex', gap:10, justifyContent:'flex-end'}}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding:'8px 18px', borderRadius:8, border:'1px solid #E0E0E0',
+              background:'white', color:'#555', fontSize:13.5, fontWeight:500, cursor:'pointer',
+            }}>
+            {cancelLabel}
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              padding:'8px 18px', borderRadius:8, border:'none',
+              background:'#C8102E', color:'white',
+              fontSize:13.5, fontWeight:600, cursor:'pointer',
+            }}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function TimetrackingPage() {
   const { lang } = useLang()
   const lbl = (nl, en) => lang === 'nl' ? nl : en
@@ -100,6 +154,9 @@ export default function TimetrackingPage() {
     return d.toISOString().slice(0, 10)
   })
   const [entryForm, setEntryForm] = useState(null)
+
+  // Confirm modal state — { type: 'entry' | 'worker', id, label }
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
   // ── Charger les données ─────────────────────────────────────
   const loadAll = useCallback(async () => {
@@ -181,7 +238,6 @@ export default function TimetrackingPage() {
       } else {
         await api.post('/timetracking/entries', toApiEntry(data))
       }
-      // Recharger pour avoir hours + cost calculés par le backend
       const eRows = await api.get('/timetracking/entries')
       setEntries(eRows.map(entryFromApi))
       setEntryForm(null)
@@ -204,7 +260,6 @@ export default function TimetrackingPage() {
   async function approveEntry(id) {
     try {
       const updated = await api.patch(`/timetracking/entries/${id}/approve`)
-      // Le backend ne renvoie que l'entry sans hours/cost ; on recharge
       const eRows = await api.get('/timetracking/entries')
       setEntries(eRows.map(entryFromApi))
     } catch (e) {
@@ -253,6 +308,15 @@ export default function TimetrackingPage() {
     }
   }
 
+  // ── Confirm handler ─────────────────────────────────────────
+  function handleConfirmDelete() {
+    if (!confirmDelete) return
+    const { type, id } = confirmDelete
+    if (type === 'entry')  deleteEntry(id)
+    if (type === 'worker') deleteWorker(id)
+    setConfirmDelete(null)
+  }
+
   const TAB_LABELS = {
     registraties: { nl: 'Registraties', en: 'Time entries' },
     medewerkers:  { nl: 'Medewerkers',  en: 'Workers' },
@@ -270,19 +334,45 @@ export default function TimetrackingPage() {
   return (
     <div className={styles.page}>
 
+      {/* Confirm delete modal */}
+      {confirmDelete && (
+        <ConfirmModal
+          title={
+            confirmDelete.type === 'entry'
+              ? lbl('Urenregistratie verwijderen', 'Delete time entry')
+              : lbl('Medewerker verwijderen', 'Delete worker')
+          }
+          message={
+            confirmDelete.type === 'entry'
+              ? lbl(
+                  `Weet u zeker dat u de registratie "${confirmDelete.label || ''}" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`,
+                  `Are you sure you want to delete the entry "${confirmDelete.label || ''}"? This cannot be undone.`
+                )
+              : lbl(
+                  `Weet u zeker dat u medewerker "${confirmDelete.label || ''}" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`,
+                  `Are you sure you want to delete worker "${confirmDelete.label || ''}"? This cannot be undone.`
+                )
+          }
+          confirmLabel={lbl('Verwijderen', 'Delete')}
+          cancelLabel={lbl('Annuleren', 'Cancel')}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>{lbl('Tijdregistratie', 'Time tracking')}</h1>
           <p className={styles.pageSubtitle}>{lbl('Uren per medewerker en project', 'Hours per worker and project')}</p>
         </div>
         <div className={styles.headerBtns}>
-          {stats.pending > 0 && (
+          {!loading && stats.pending > 0 && (
             <button className={styles.approveAllBtn} onClick={approveAll}>
               <CheckCircle size={14} />
               {lbl(`${stats.pending} goedkeuren`, `Approve ${stats.pending}`)}
             </button>
           )}
-          {tab === 'registraties' && (
+          {!loading && tab === 'registraties' && (
             <button className={styles.addBtn} onClick={() => setEntryForm('new')}>
               <Plus size={15} /> {lbl('Uren invoeren', 'Log hours')}
             </button>
@@ -290,75 +380,75 @@ export default function TimetrackingPage() {
         </div>
       </div>
 
-      <div className={styles.statsRow}>
-        <StatCard icon={Clock}  label={lbl('Deze week','This week')}       value={fmtH(stats.weekHours)}  color="blue"   sub={fmtEur(stats.weekCost)} />
-        <StatCard icon={Clock}  label={lbl('Totaal uren','Total hours')}   value={fmtH(stats.totalHours)} color="sky" />
-        <StatCard icon={Euro}   label={lbl('Totale loonkost','Total cost')} value={fmtEur(stats.totalCost)} color="orange" />
-        <StatCard icon={AlertTriangle} label={lbl('Te goedkeuren','Pending approval')} value={stats.pending} color={stats.pending>0?'red':'green'} alert={stats.pending>0} />
-        <StatCard icon={Users}  label={lbl('Medewerkers','Workers')}       value={stats.activeWorkers}    color="purple" />
-      </div>
-
-      <div className={styles.tabs}>
-        {TABS.map(t => (
-          <button key={t} className={`${styles.tab} ${tab===t?styles.tabActive:''}`}
-            onClick={() => { setTab(t); setSearch('') }}>
-            {lang==='nl' ? TAB_LABELS[t].nl : TAB_LABELS[t].en}
-            {t === 'registraties' && stats.pending > 0 && (
-              <span className={styles.tabBadge}>{stats.pending}</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'registraties' && (
-        <div className={styles.weekNav}>
-          <div className={styles.weekNavLeft}>
-            <button className={styles.weekBtn} onClick={prevWeek}><ChevronLeft size={16}/></button>
-            <span className={styles.weekLabel}>{weekLabel}</span>
-            <button className={styles.weekBtn} onClick={nextWeek}><ChevronRight size={16}/></button>
-            <button className={styles.todayBtn} onClick={goThisWeek}>{lbl('Deze week','This week')}</button>
-          </div>
-          <div className={styles.weekSummary}>
-            <span className={styles.weekStat}><Clock size={13}/>{fmtH(filtered.reduce((s,e)=>s+e.hours,0))}</span>
-            <span className={styles.weekStat}><Euro size={13}/>{fmtEur(filtered.reduce((s,e)=>s+e.cost,0))}</span>
-          </div>
-        </div>
-      )}
-
-      {tab === 'registraties' && (
-        <div className={styles.toolbar}>
-          <div className={styles.searchWrap}>
-            <Search size={14} className={styles.searchIcon}/>
-            <input className={styles.searchInput}
-              placeholder={lbl('Zoeken op omschrijving, medewerker…','Search description, worker…')}
-              value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-          <div className={styles.filters}>
-            <Filter size={14} style={{color:'var(--grey-300)'}}/>
-            <select className={styles.filterSelect} value={filterWorker} onChange={e=>setFilterWorker(e.target.value)}>
-              <option value="">{lbl('Alle medewerkers','All workers')}</option>
-              {workers.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
-            <select className={styles.filterSelect} value={filterProject} onChange={e=>setFilterProject(e.target.value)}>
-              <option value="">{lbl('Alle projecten','All projects')}</option>
-              {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <select className={styles.filterSelect} value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
-              <option value="">{lbl('Alle statussen','All statuses')}</option>
-              <option value="concept">{lbl('Concept','Draft')}</option>
-              <option value="wacht_goedkeuring">{lbl('Wacht goedkeuring','Pending approval')}</option>
-              <option value="goedgekeurd">{lbl('Goedgekeurd','Approved')}</option>
-            </select>
-          </div>
-        </div>
-      )}
-
       {loading ? (
-        <p style={{ padding: 24, textAlign: 'center', color: '#666' }}>Laden…</p>
+        <TimetrackingSkeleton lang={lang} lbl={lbl} tab={tab} />
       ) : error ? (
         <p style={{ padding: 24, textAlign: 'center', color: '#C8102E' }}>Fout: {error}</p>
       ) : (
         <>
+          <div className={styles.statsRow}>
+            <StatCard icon={Clock}  label={lbl('Deze week','This week')}       value={fmtH(stats.weekHours)}  color="blue"   sub={fmtEur(stats.weekCost)} />
+            <StatCard icon={Clock}  label={lbl('Totaal uren','Total hours')}   value={fmtH(stats.totalHours)} color="sky" />
+            <StatCard icon={Euro}   label={lbl('Totale loonkost','Total cost')} value={fmtEur(stats.totalCost)} color="orange" />
+            <StatCard icon={AlertTriangle} label={lbl('Te goedkeuren','Pending approval')} value={stats.pending} color={stats.pending>0?'red':'green'} alert={stats.pending>0} />
+            <StatCard icon={Users}  label={lbl('Medewerkers','Workers')}       value={stats.activeWorkers}    color="purple" />
+          </div>
+
+          <div className={styles.tabs}>
+            {TABS.map(t => (
+              <button key={t} className={`${styles.tab} ${tab===t?styles.tabActive:''}`}
+                onClick={() => { setTab(t); setSearch('') }}>
+                {lang==='nl' ? TAB_LABELS[t].nl : TAB_LABELS[t].en}
+                {t === 'registraties' && stats.pending > 0 && (
+                  <span className={styles.tabBadge}>{stats.pending}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'registraties' && (
+            <div className={styles.weekNav}>
+              <div className={styles.weekNavLeft}>
+                <button className={styles.weekBtn} onClick={prevWeek}><ChevronLeft size={16}/></button>
+                <span className={styles.weekLabel}>{weekLabel}</span>
+                <button className={styles.weekBtn} onClick={nextWeek}><ChevronRight size={16}/></button>
+                <button className={styles.todayBtn} onClick={goThisWeek}>{lbl('Deze week','This week')}</button>
+              </div>
+              <div className={styles.weekSummary}>
+                <span className={styles.weekStat}><Clock size={13}/>{fmtH(filtered.reduce((s,e)=>s+e.hours,0))}</span>
+                <span className={styles.weekStat}><Euro size={13}/>{fmtEur(filtered.reduce((s,e)=>s+e.cost,0))}</span>
+              </div>
+            </div>
+          )}
+
+          {tab === 'registraties' && (
+            <div className={styles.toolbar}>
+              <div className={styles.searchWrap}>
+                <Search size={14} className={styles.searchIcon}/>
+                <input className={styles.searchInput}
+                  placeholder={lbl('Zoeken op omschrijving, medewerker…','Search description, worker…')}
+                  value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+              <div className={styles.filters}>
+                <Filter size={14} style={{color:'var(--grey-300)'}}/>
+                <select className={styles.filterSelect} value={filterWorker} onChange={e=>setFilterWorker(e.target.value)}>
+                  <option value="">{lbl('Alle medewerkers','All workers')}</option>
+                  {workers.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+                <select className={styles.filterSelect} value={filterProject} onChange={e=>setFilterProject(e.target.value)}>
+                  <option value="">{lbl('Alle projecten','All projects')}</option>
+                  {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <select className={styles.filterSelect} value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
+                  <option value="">{lbl('Alle statussen','All statuses')}</option>
+                  <option value="concept">{lbl('Concept','Draft')}</option>
+                  <option value="wacht_goedkeuring">{lbl('Wacht goedkeuring','Pending approval')}</option>
+                  <option value="goedgekeurd">{lbl('Goedgekeurd','Approved')}</option>
+                </select>
+              </div>
+            </div>
+          )}
+
           {tab === 'registraties' && (
             <TimeEntryList
               entries={filtered}
@@ -366,7 +456,11 @@ export default function TimetrackingPage() {
               workers={workers}
               lang={lang}
               onEdit={e => setEntryForm(e)}
-              onDelete={deleteEntry}
+              onDelete={e => setConfirmDelete({
+                type: 'entry',
+                id: e.id,
+                label: `${e.workerName || ''} · ${e.date || ''}`
+              })}
               onApprove={approveEntry}
             />
           )}
@@ -377,7 +471,11 @@ export default function TimetrackingPage() {
               entries={entries}
               lang={lang}
               onSave={saveWorker}
-              onDelete={deleteWorker}
+              onDelete={w => setConfirmDelete({
+                type: 'worker',
+                id: w.id,
+                label: w.name
+              })}
             />
           )}
 
@@ -417,5 +515,194 @@ function StatCard({ icon: Icon, label, value, color, sub, alert }) {
         {sub && <div className={styles.statSub}>{sub}</div>}
       </div>
     </div>
+  )
+}
+
+/* ───────────────────────── SKELETON ───────────────────────── */
+
+function Shimmer({ w = '100%', h = 14, r = 6, style = {} }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%)',
+      backgroundSize: '400% 100%',
+      animation: 'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }} />
+  )
+}
+
+function SkeletonStatCard({ color }) {
+  const BG = { blue:'#EEF5FF', sky:'#E3F2FD', orange:'#FFF3E0', red:'#FFEBEE', green:'#E8F5E9', purple:'#F3E5F5' }
+  return (
+    <div className={styles.statCard} style={{ borderLeftColor: '#e0e0e0', pointerEvents: 'none', opacity: 0.75 }}>
+      <div className={styles.statIcon} style={{ background: BG[color] || BG.blue }}>
+        <Shimmer w={16} h={16} r={4} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <Shimmer w={70} h={18} style={{ marginBottom: 6 }} />
+        <Shimmer w={90} h={11} style={{ marginBottom: 4 }} />
+        <Shimmer w={60} h={10} />
+      </div>
+    </div>
+  )
+}
+
+function SkeletonEntryRow({ index }) {
+  const widths = ['60%', '75%', '55%', '70%']
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 14,
+      padding: '14px 16px', borderBottom: '1px solid #f0f0f0',
+      pointerEvents: 'none'
+    }}>
+      <Shimmer w={4} h={40} r={2} />
+      <Shimmer w={36} h={36} r={18} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Shimmer w={widths[index % widths.length]} h={13} />
+        <Shimmer w={130} h={10} />
+      </div>
+      <Shimmer w={70} h={12} />
+      <Shimmer w={60} h={12} />
+      <Shimmer w={80} h={12} />
+      <Shimmer w={70} h={22} r={11} />
+      <div style={{ display: 'flex', gap: 6 }}>
+        <Shimmer w={28} h={28} r={6} />
+        <Shimmer w={28} h={28} r={6} />
+      </div>
+    </div>
+  )
+}
+
+function SkeletonWorkerCard({ index }) {
+  const widths = ['55%', '70%', '60%']
+  return (
+    <div style={{
+      padding: 16, borderRadius: 12, border: '1px solid #f0f0f0',
+      background: '#fafafa', display: 'flex', flexDirection: 'column', gap: 10,
+      pointerEvents: 'none'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Shimmer w={40} h={40} r={20} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <Shimmer w={widths[index % widths.length]} h={13} />
+          <Shimmer w={70} h={10} />
+        </div>
+      </div>
+      <Shimmer w="90%" h={11} />
+      <Shimmer w="70%" h={11} />
+      <Shimmer w="50%" h={11} />
+    </div>
+  )
+}
+
+function TimetrackingSkeleton({ lang, lbl, tab }) {
+  const weekDates = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+    return Array.from({ length: 7 }, (_, i) => {
+      const nd = new Date(d); nd.setDate(d.getDate() + i); return nd
+    })
+  })()
+
+  const MONTHS_NL = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec']
+  const mon = weekDates[0]
+  const sun = weekDates[6]
+  const weekLabel = `${mon.getDate()} ${MONTHS_NL[mon.getMonth()]} – ${sun.getDate()} ${MONTHS_NL[sun.getMonth()]} ${sun.getFullYear()}`
+
+  return (
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      <div className={styles.statsRow}>
+        <SkeletonStatCard color="blue" />
+        <SkeletonStatCard color="sky" />
+        <SkeletonStatCard color="orange" />
+        <SkeletonStatCard color="red" />
+        <SkeletonStatCard color="purple" />
+      </div>
+
+      <div className={styles.tabs}>
+        {TABS.map(t => (
+          <button key={t} className={`${styles.tab} ${tab===t?styles.tabActive:''}`} disabled
+            style={{ cursor: 'default' }}>
+            <Shimmer w={90} h={13} />
+          </button>
+        ))}
+      </div>
+
+      {tab === 'registraties' && (
+        <>
+          <div className={styles.weekNav}>
+            <div className={styles.weekNavLeft}>
+              <Shimmer w={32} h={32} r={6} />
+              <Shimmer w={170} h={14} />
+              <Shimmer w={32} h={32} r={6} />
+              <Shimmer w={90} h={32} r={6} />
+            </div>
+            <div className={styles.weekSummary}>
+              <Shimmer w={70} h={14} />
+              <Shimmer w={90} h={14} />
+            </div>
+          </div>
+
+          <div className={styles.toolbar}>
+            <div className={styles.searchWrap}>
+              <Shimmer w={14} h={14} r={4} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <Shimmer w="100%" h={36} r={8} />
+            </div>
+            <div className={styles.filters}>
+              <Shimmer w={14} h={14} r={4} />
+              <Shimmer w={140} h={36} r={8} />
+              <Shimmer w={140} h={36} r={8} />
+              <Shimmer w={150} h={36} r={8} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {tab === 'registraties' && (
+        <div style={{
+          borderRadius: 12, border: '1px solid #f0f0f0',
+          overflow: 'hidden', background: '#fff', marginTop: 8
+        }}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <SkeletonEntryRow key={i} index={i} />
+          ))}
+        </div>
+      )}
+
+      {tab === 'medewerkers' && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+          gap: 12, marginTop: 8
+        }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonWorkerCard key={i} index={i} />
+          ))}
+        </div>
+      )}
+
+      {tab === 'rapport' && (
+        <div style={{
+          borderRadius: 12, border: '1px solid #f0f0f0',
+          background: '#fff', padding: 20, marginTop: 8,
+          display: 'flex', flexDirection: 'column', gap: 14
+        }}>
+          <Shimmer w={200} h={16} />
+          <Shimmer w="100%" h={80} r={8} />
+          <Shimmer w={180} h={16} />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Shimmer key={i} w="100%" h={32} r={6} />
+          ))}
+        </div>
+      )}
+    </>
   )
 }

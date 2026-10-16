@@ -98,14 +98,7 @@ export default function GanttPage() {
 
   const totalWidth = zoom * DAY_W
 
-  if (loading) return (
-    <div className={styles.page}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
-        <div style={{ width: 32, height: 32, border: '3px solid #e0e0e0', borderTopColor: '#1A3E6F', borderRadius: '50%', animation: 'spin .7s linear infinite' }}/>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    </div>
-  )
+  if (loading) return <GanttSkeleton lbl={lbl} MONTHS={MONTHS} />
 
   if (error) return (
     <div className={styles.page}>
@@ -277,6 +270,173 @@ export default function GanttPage() {
           </div>
         )
       })()}
+    </div>
+  )
+}
+
+/* ───────────────────────── SKELETON ───────────────────────── */
+
+function Shimmer({ w = '100%', h = 14, r = 6, style = {} }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%)',
+      backgroundSize: '400% 100%',
+      animation: 'shimmer 1.4s ease-in-out infinite',
+      ...style
+    }} />
+  )
+}
+
+function GanttSkeleton({ lbl, MONTHS }) {
+  const DAY_W = 32
+  const ZOOM = 28
+  const totalWidth = ZOOM * DAY_W
+  const leftRows = 7
+
+  // Build a fake header: 2 mois + jours
+  const fakeDays = Array.from({ length: ZOOM }).map((_, i) => {
+    const d = new Date('2024-08-01'); d.setDate(d.getDate() + i)
+    return {
+      day: d.getDate(),
+      isWeekend: d.getDay() === 0 || d.getDay() === 6,
+      isToday: false,
+    }
+  })
+
+  // Regroupe les mois pour l'en-tête
+  const fakeMonthGroups = (() => {
+    const groups = []
+    fakeDays.forEach(d => {
+      const last = groups[groups.length - 1]
+      if (last && last.count < 14 && groups.length === 0) last.count++
+      else groups.push({ count: 1 })
+    })
+    return [
+      { label: `${MONTHS[7]} 2024`, count: 14 },
+      { label: `${MONTHS[8]} 2024`, count: 14 },
+    ]
+  })()
+
+  // Fake bars with random-looking positions
+  const fakeBars = [
+    { left: 2 * DAY_W, width: 6 * DAY_W },
+    { left: 5 * DAY_W, width: 8 * DAY_W },
+    { left: 9 * DAY_W, width: 5 * DAY_W },
+    { left: 3 * DAY_W, width: 10 * DAY_W },
+    { left: 12 * DAY_W, width: 7 * DAY_W },
+    { left: 6 * DAY_W, width: 9 * DAY_W },
+    { left: 1 * DAY_W, width: 6 * DAY_W },
+  ]
+
+  return (
+    <div className={styles.page}>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>{lbl('Planningsbord', 'Planning board')}</h1>
+          <p className={styles.pageSubtitle}>{lbl('Gantt-overzicht van alle projecten', 'Gantt overview of all projects')}</p>
+        </div>
+        <div className={styles.headerControls}>
+          <Shimmer w={150} h={36} r={8} />
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className={styles.legend}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <span key={i} className={styles.legendItem}>
+            <Shimmer w={10} h={10} r={5} />
+            <Shimmer w={60} h={11} />
+          </span>
+        ))}
+      </div>
+
+      {/* Nav */}
+      <div className={styles.ganttNav}>
+        <div className={styles.navLeft}>
+          <Shimmer w={32} h={32} r={6} />
+          <Shimmer w={32} h={32} r={6} />
+          <Shimmer w={90} h={32} r={6} />
+        </div>
+        <div className={styles.navRight}>
+          <Shimmer w={32} h={32} r={6} />
+          <Shimmer w={70} h={14} />
+          <Shimmer w={32} h={32} r={6} />
+        </div>
+      </div>
+
+      {/* Gantt */}
+      <div className={styles.ganttWrap}>
+        <div className={styles.gantt}>
+          {/* Left: rows */}
+          <div className={styles.ganttLeft}>
+            <div className={styles.ganttLeftHeader}><span>{lbl('Project', 'Project')}</span></div>
+            {Array.from({ length: leftRows }).map((_, i) => (
+              <div key={i} className={styles.ganttRow} style={{ pointerEvents: 'none' }}>
+                <Shimmer w={10} h={10} r={5} />
+                <div className={styles.rowInfo} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <Shimmer w={`${55 + (i % 3) * 12}%`} h={12} />
+                  <Shimmer w={`${35 + (i % 2) * 10}%`} h={10} />
+                </div>
+                <Shimmer w={55} h={18} r={10} />
+              </div>
+            ))}
+          </div>
+
+          {/* Right: header + bars */}
+          <div className={styles.ganttRight}>
+            {/* Month header */}
+            <div className={styles.monthHeader} style={{ width: totalWidth }}>
+              {fakeMonthGroups.map((mg, i) => (
+                <div key={i} className={styles.monthCell} style={{ width: mg.count * DAY_W }}>
+                  <Shimmer w={60} h={12} />
+                </div>
+              ))}
+            </div>
+
+            {/* Day header */}
+            <div className={styles.dayHeader} style={{ width: totalWidth }}>
+              {fakeDays.map((d, i) => (
+                <div key={i}
+                  className={`${styles.dayCell} ${d.isWeekend ? styles.dayCellWeekend : ''}`}
+                  style={{ width: DAY_W }}>
+                  <Shimmer w={14} h={11} />
+                </div>
+              ))}
+            </div>
+
+            {/* Bars area */}
+            <div className={styles.barsArea} style={{ width: totalWidth }}>
+              <div className={styles.colOverlay} style={{ width: totalWidth }}>
+                {fakeDays.map((d, i) => (
+                  <div key={i}
+                    className={d.isWeekend ? styles.weekendCol : ''}
+                    style={{ left: i * DAY_W, width: DAY_W }}/>
+                ))}
+              </div>
+
+              {fakeBars.map((bar, i) => (
+                <div key={i} className={styles.barRow} style={{ pointerEvents: 'none' }}>
+                  <Shimmer
+                    w={bar.width}
+                    h={22}
+                    r={6}
+                    style={{ position: 'absolute', left: bar.left, top: 10 }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
